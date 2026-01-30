@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: kubanoms_app
+    restart: unless-stopped
+    volumes:
+      - sqlite_data:/var/www/database
+      - storage_data:/var/www/storage
+    ports:
+      - "80:80"
+
+volumes:
+  sqlite_data:
+  storage_data:

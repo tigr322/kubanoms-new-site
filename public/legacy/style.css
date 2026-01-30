@@ -1,0 +1,1363 @@
+body {
+    margin: 0;
+    padding: 0;
+    background: #fff url("/legacy/image/body_bg.jpg") repeat-x top;
+    color: #000;
+    font-size: 14px;
+    font-family: Arial, Helvetica, sans-serif;
+}
+a {
+    color: #2c4f6b;
+    text-decoration: underline;
+}
+ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+img {
+    padding: 0;
+    margin: 0;
+    border: 0;
+}
+a img {
+    border: 0;
+}
+
+.top {
+    background: url("/legacy/image/top_bg.jpg") no-repeat top;
+    width: 100%;
+}
+
+.bottom-bar {
+    background: url("/legacy/image/bottom_bg.jpg") no-repeat bottom;
+    width: 100%;
+}
+
+.container {
+    margin: 0 auto;
+    width: 1160px;
+}
+
+.header {
+    width: 100%;
+}
+.header .logo {
+    background: url("/legacy/image/logo.gif") no-repeat top;
+    height: 121px;
+    width: 87px;
+    float:left;
+}
+.header .title {
+    height: 92px;
+    width: 423px;
+    float: left;
+    padding-top: 28px;
+}
+.header .top-nav {
+    width: 650px;
+    float: left;
+    text-align: right;
+}
+.header .top-nav .buttons {
+    margin-top: 32px;
+}
+.header .top-nav .buttons ul {
+    font-size: 0;
+}
+.header .top-nav .buttons ul li {
+    display: inline-block;
+    font-size: 0;
+    vertical-align: middle;
+}
+.header .top-nav .buttons ul li img {
+    vertical-align: middle;
+}
+.header .top-nav .today {
+    font-size: 15px;
+    margin-top: 29px;
+}
+.header .top-nav a {
+    color: #2c4f6b;
+    font-weight: bold;
+    font-size: 13px;
+    text-decoration: none;
+}
+.header .special {
+    font-size: 15px;
+    vertical-align: middle;
+    padding-right: 9px
+}
+
+.header .title a {
+    font-size: 19px;
+    font-weight: bold;
+    text-shadow: 1px 0 1px #8dc5d4;
+    text-align: left;
+    color: #2c4f6b;
+    text-decoration: none;
+}
+.header .image {
+    padding: 0;
+    margin: 0;
+    font-size: 0;
+}
+
+.main {
+    padding: 20px 0 20px 0;
+}
+
+ul.navbar {
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    width: 1160px;
+    background-color: #ffffff;
+    margin: 0 auto;
+    padding-left: 5px;
+    padding-right: 5px;
+    border: 1px solid #e0e4e7;
+    font-size: 0;
+    display: table;
+    position: relative;
+}
+ul.navbar > li {
+    display: table-cell;
+    border-right: 1px solid #e0e4e7;
+}
+ul.navbar > li:last-child {
+    border-right: none;
+}
+ul.navbar > li > a {
+    color: #0e517e;
+    text-decoration: none;
+    font-weight: bold;
+    line-height: 37px;
+    display: block;
+    text-align: center;
+    position: relative;
+    font-size: 14px;
+}
+ul.navbar > li > ul {
+    display: none;
+}
+ul.navbar > li:hover > ul {
+    display: block;
+    background-color: #0e517e;
+    position: absolute;
+    top: 37px;
+    z-index: 100;
+    width: 290px;
+}
+ul.navbar > li:hover > ul > li {
+    padding: 10px 20px 10px 20px;
+    border-bottom: 1px solid #a4c5dc;
+}
+ul.navbar > li:hover > ul > li a {
+    color: #fff;
+    display: block;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+ul.navbar > li:hover > ul > li:hover {
+    background-color: #08b7be;
+}
+
+ul.navbar > li:hover > ul > li span {
+    color: #fff;
+    display: block;
+    font-size: 14px;
+}
+
+.sidebar-wrapper {
+    float: left;
+    width: 240px;
+    margin-right: 20px;
+}
+
+.banners {
+    padding: 20px 0 20px 0;
+    text-align: center;
+}
+
+.banners a {
+    padding-bottom: 20px;
+    display: block;
+    font-size: 0;
+}
+
+.bottom-banners {
+    padding: 15px 0;
+    text-align: center;
+    background: #f5f5f5;
+    border-top: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.links-external-sites .bottom-banners {
+    background: transparent;
+    border-top: none;
+    border-bottom: none;
+    padding: 10px 0;
+    text-align: left;
+    justify-content: flex-start;
+}
+
+.bottom-banners a {
+    padding-bottom: 15px;
+    display: inline-block;
+    font-size: 0;
+    flex: 0 0 auto;
+    margin: 0;
+}
+
+.links-external-sites .bottom-banners a {
+    margin: 0 12px 0 0;
+    vertical-align: top;
+    padding-bottom: 0;
+}
+
+.bottom-banners img {
+    max-width: 200px;
+    max-height: 100px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+}
+
+.links-external-sites .bottom-banners img {
+    max-width: 180px;
+    max-height: 90px;
+}
+
+/* ===== РЕЖИМЫ ДЛЯ СЛАБОВИДЯЩИХ ===== */
+
+/* Размеры шрифта */
+body.small-font .wrapper,
+body.small-font .container,
+body.small-font .content-wrapper,
+body.small-font .main-content,
+body.small-font .content-left {
+    font-size: 100%;
+}
+
+body.normal-font .wrapper,
+body.normal-font .container,
+body.normal-font .content-wrapper,
+body.normal-font .main-content,
+body.normal-font .content-left {
+    font-size: 120%;
+    line-height: 120%;
+}
+
+body.big-font .wrapper,
+body.big-font .container,
+body.big-font .content-wrapper,
+body.big-font .main-content,
+body.big-font .content-left {
+    font-size: 150%;
+    line-height: 130%;
+}
+
+/* Типы шрифтов */
+body.san-serif {
+    font-family: Arial, Tahoma, sans-serif;
+}
+
+body.serif {
+    font-family: Times New Roman, Time, serif;
+}
+
+/* Цветовые схемы */
+body.black {
+    color: #fff;
+    background: #000;
+}
+
+body.black * {
+    color: #fff !important;
+}
+
+body.black .container,
+body.black .content-wrapper,
+body.black .top-bar,
+body.black .header,
+body.black .bottom-bar,
+body.black .links-external-sites {
+    background: #000 !important;
+}
+
+body.white {
+    color: #000;
+    background: #fff;
+}
+
+body.white * {
+    color: #000 !important;
+}
+
+body.blue {
+    color: #063462;
+    background: #9dd1ff;
+}
+
+body.blue * {
+    color: #063462 !important;
+}
+
+body.blue .container,
+body.blue .content-wrapper,
+body.blue .top-bar,
+body.blue .header,
+body.blue .bottom-bar,
+body.blue .links-external-sites {
+    background: #9dd1ff !important;
+}
+
+body.brown {
+    color: #f7f3d6;
+    background: #59422e;
+}
+
+body.brown * {
+    color: #f7f3d6 !important;
+}
+
+body.brown .container,
+body.brown .content-wrapper,
+body.brown .top-bar,
+body.brown .header,
+body.brown .bottom-bar,
+body.brown .links-external-sites {
+    background: #59422e !important;
+}
+
+/* Скрытие изображений */
+body.hide-img img,
+body.hide-img .header .logo,
+body.hide-img .banners img,
+body.hide-img .bottom-banners img {
+    display: none !important;
+}
+
+/* Интервал между буквами */
+body.interval-small .wrapper,
+body.interval-small .container,
+body.interval-small .content-wrapper,
+body.interval-small .main-content,
+body.interval-small .content-left {
+    letter-spacing: normal;
+}
+
+body.interval-medium .wrapper,
+body.interval-medium .container,
+body.interval-medium .content-wrapper,
+body.interval-medium .main-content,
+body.interval-medium .content-left {
+    letter-spacing: 0.1em;
+}
+
+body.interval-large .wrapper,
+body.interval-large .container,
+body.interval-large .content-wrapper,
+body.interval-large .main-content,
+body.interval-large .content-left {
+    letter-spacing: 0.3em;
+}
+
+.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+ul.sidebar {
+    background-color: #f2f6f7;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+    padding: 4px 0 4px 0;
+    border: 1px solid #e0e4e7;
+    width: 238px;
+    font-size: 14px;
+}
+ul.sidebar li {
+    position: relative;
+}
+ul.sidebar a {
+    display: block;
+    color: #231f20;
+}
+ul.sidebar > li a {
+    text-decoration: underline;
+    padding: 10px 20px 10px 19px;
+    border-bottom: 1px solid #e0e4e7;
+}
+ul.sidebar > li:last-child a {
+    border-bottom: none;
+}
+ul.sidebar > li > ul {
+    display: none;
+    position: relative;
+    top: 0;
+    margin: 0;
+}
+ul.sidebar > li.active > a {
+    background-color: #0e517e;
+    border-bottom: none;
+    padding: 10px 21px 10px 21px;
+    color: #fff;
+    position: relative;
+    left: -1px;
+    width: 198px;
+}
+ul.sidebar > li.active > ul {
+    display: block;
+    background-color: #fff;
+}
+ul.sidebar > li.active > ul > li a {
+    text-decoration: none;
+}
+
+
+.virtual_reception {
+    display: none;
+}
+
+.content-wrapper {
+    float: left;
+    width: 900px;
+    min-height: 1px;
+}
+
+.main-content {
+    float: left;
+    width: 620px;
+    min-height: 1px;
+}
+
+
+.content {
+    padding: 15px 20px 15px 20px;
+    border: 1px solid #e0e4e7;
+    background-color: #fff;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+}
+.content h1 {
+    color: #13527d;
+    font-size: 20px;
+    font-weight: normal;
+}
+.content table {
+    border-collapse: collapse;
+}
+.content table.stripped {
+    border: 1px solid #e3e3e3;
+}
+.content table.stripped > thead th {
+    background-color: #0e517e;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: center;
+}
+.content table.stripped tr.union td {
+    text-align: center;
+    font-weight: bold;
+}
+.content table.stripped td, .content table.stripped th {
+    border: 1px solid #e3e3e3;
+    padding: 2px;
+}
+.content table.stripped tr:nth-child(odd) {
+    background-color: #f2f6f7;
+}
+.content img {
+    max-width: 100%;
+}
+.content ul li {
+    padding: 0 0 10px 20px;
+    background: url('/legacy/image/li.gif') no-repeat 5px 5px;
+}
+.content img ~ a {
+    margin: 5px 5px 0 55px;
+    display: block;
+}
+
+
+
+
+.links-external-sites {
+    border: 1px solid #e0e4e7;
+    background-color: #fff;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+    text-align: center;
+    padding: 24px 0;
+}
+.links-external-sites ul li {
+    display: inline-block;
+}
+.links-external-sites ul li a {
+    font-size: 0;
+    height: 100px;
+}
+
+
+.footer .contact{
+    width: 405px;
+}
+.footer .section-site{
+    width: 320px;
+}
+.footer .additionally{
+    width: 315px;
+}
+.footer .column {
+    padding: 50px 20px 30px 20px;
+    float: left;
+}
+.footer .column h3 {
+    font-weight: bold;
+    font-size: 14px;
+    color: #0e517e;
+    margin: 0;
+    padding: 0 0 10px 0;
+}
+.footer .column h2 {
+    font-weight: bold;
+    font-size: 17px;
+    color: #0e517e;
+    margin: 0;
+    padding: 0 0 20px 0;
+}
+.footer .column ul > li {
+    padding: 0 0 10px 0;
+}
+.footer .column a {
+    color: #6c6c6c;
+    text-decoration: underline;
+    margin: 0;
+    font-size: 14px;
+}
+.footer .copyright-wrapper {
+    margin-top: 2px;
+    font-size: 13px;
+    height: 78px;
+    display: table;
+    width: 100%;
+}
+.footer .copyright-wrapper .copyright,
+.footer .copyright-wrapper .counters,
+.footer .copyright-wrapper .developer {
+    display: table-cell;
+    padding: 0 20px 20px 20px;
+}
+.footer .copyright-wrapper .copyright {
+
+    display: table-cell;
+}
+.footer .developer a {
+    color: #6c6c6c;
+    text-decoration: underline;
+    font-size: 13px;
+}
+.footer .copyright-wrapper .developer {
+    text-align: right;
+}
+
+
+.clearfix:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+
+
+
+
+
+.guestbook {
+    border-top: 1px solid #e0e4e7;
+    margin-top: 15px;
+}
+.guestbook_item {
+    padding: 10px 0 10px 0;
+    border-bottom: 1px solid #e0e4e7;
+    font-weight: bold;
+    margin: 10px 0 10px 0;
+}
+.guestbook_comment {
+    padding: 10px 0 10px 0;
+    font-weight: normal;
+}
+
+
+
+
+.breadcrumbs {
+    padding-bottom: 20px;
+}
+.breadcrumbs ul > li {
+    display: inline-block;
+    background: none;
+    padding: 0;
+}
+.breadcrumbs ul > li a {
+    text-decoration: none;
+    color: #0d4f81;
+    font-size: 11px;
+}
+.breadcrumbs ul > li a:after {
+    content: '/';
+    margin-left: 3px;
+    color: #0d4f81;
+    font-size: 11px;
+}
+.breadcrumbs ul > li:last-child a:after {
+    content: normal;
+}
+
+.content-left {
+    float: left;
+    width: 240px;
+    margin-left: 20px;
+    min-height: 1px;
+}
+.content-left .content {
+    margin-bottom: 20px;
+    padding: 14px 14px;
+    font-size: 0;
+}
+.content-left .content > img {
+    display: block;
+    float: left
+}
+.content-left .content.no-padding {
+    padding: 0;
+    border: none;
+}
+.content-left .content.padding-3-t-b {
+    padding: 3px 0;
+}
+.content-left .content img {
+    max-width: none;
+}
+.content-left .content.how-to-attach a {
+    font-size: 0;
+}
+.content-left .content.corruption {
+    background-color: #0e517e;
+    text-align: center;
+}
+.content-left .content.corruption a {
+    color: #fff;
+    font-size: 18px;
+}
+.content-left .content.actual h4 {
+    padding: 0 0 15px 0;
+    margin: 0;
+    font-size: 19px;
+    color: #231f20;
+}
+.content-left .content.actual ul li {
+    border-top: 1px solid #e0e4e7;
+    background: url(http://kubanoms.ru/img/importants_bul.gif) no-repeat 0 20px;
+    padding: 15px 0 15px 12px;
+    margin: 0;
+}
+.content-left .content.actual ul li a {
+    font-size: 14px;
+    color: #231f20;
+    font-weight: normal;
+}
+.content-left .content.hot-line > img {
+    padding: 7px 10px 7px 0;
+}
+
+
+
+
+.content-left a {
+    color: #0e517e;
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: bold;
+}
+.content.block {
+    padding: 0;
+    width: 238px;
+}
+.content.index {
+    padding: 0;
+    width: 638px;
+    float: left;
+}
+
+
+.tabs-container .tab-pane {
+    display: none;
+}
+
+.tabs-container .tab-pane.active {
+    display: block;
+}
+
+
+.tabs-container ul.tabs {
+    text-align: center;
+    outline: 0;
+    list-style: none;
+    font-size: 0;
+    display:block;
+    border-bottom: 1px solid #e0e4e7;
+}
+.tabs-container ul.tabs li{
+    background: none;
+    list-style: none;
+    padding: 0 18px 0 17px;
+    display: inline-block;
+    height: 39px;
+    line-height: 39px;
+    margin-right: -1px;
+    margin-bottom: -1px;
+}
+.tabs-container ul.tabs li.active {
+    border-top: 1px solid #e0e4e7;
+    border-left: 1px solid #e0e4e7;
+    border-right: 1px solid #e0e4e7;
+    border-bottom: 1px solid #fff;
+}
+.tabs-container ul.tabs li.active a {
+    color: #000;
+}
+.tabs-container ul.tabs li > a {
+    text-decoration: none;
+    text-transform: uppercase;
+    color: #888888;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.m-g-b {
+    font-size: 0;
+    margin: 0 0 20px 0;
+}
+
+.hot-line-content {
+    font-size: 11px;
+}
+.hot-line-content .title {
+    text-transform: uppercase;
+    font-weight: bold;
+    color: #0e517e;
+    font-size: 15px;
+}
+.hot-line-content h3 {
+    color: #ff0000;
+    padding: 0;
+    margin: 0;
+    font-size: 16px;
+}
+
+
+.item-container {
+    padding: 20px 20px 15px 20px;
+}
+.item-container .item {
+    padding-bottom: 22px;
+}
+
+.item-container .item-image {
+    padding-right: 10px;
+    float: left;
+    width: 158px;
+    height: 105px;
+    text-align: center;
+}
+.item-container .item-date {
+    padding-bottom: 8px;
+    color: #656565;
+    font-size: 12px;
+}
+.item-container .item-text a {
+    color: #0e517e;
+    font-size: 15px;
+}
+
+.item-container .item-archive {
+    text-align: center;
+    border: 1px solid #e0e4e7;
+    padding: 12px;
+}
+.item-container .item-archive a {
+    text-decoration: none;
+    text-transform: uppercase;
+    color: #333333;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.map {
+    background: #f2f6f7 url(http://kubanoms.ru/img/map_bg1.gif) repeat-y left;
+    padding: 15px 0 10px 0;
+}
+.map h3 {
+    color: #231f20;
+    padding: 0 20px 10px 20px;
+    font-size: 19px;
+    font-weight: bold;
+    margin: 0;
+}
+.filialsmap {
+    background: url(http://kubanoms.ru/img/map/bg.gif) no-repeat 100px 0;
+    margin-bottom: 20px;
+    padding: 0 100px 0 100px;
+}
+.maptxt {
+    padding: 0 0 0 15px;
+}
+
+.maptxt div {
+    font-size: 13px;
+    padding: 5px 0 5px 25px;
+    width: 125px;
+    float: left;
+}
+.maptxt div a {
+    color: #231f20;
+    text-decoration: none;
+}
+
+#filtxt0 {
+    background: url(http://kubanoms.ru/img/map/p-eysk.gif) no-repeat left;
+}
+#filtxt1 {
+    background: url(http://kubanoms.ru/img/map/p-tihoreckiy.gif) no-repeat left;
+}
+#filtxt2 {
+    background: url(http://kubanoms.ru/img/map/p-timashevsk.gif) no-repeat left;
+}
+#filtxt3 {
+    background: url(http://kubanoms.ru/img/map/p-kropotkin.gif) no-repeat left;
+}
+#filtxt4 {
+    background: url(http://kubanoms.ru/img/map/p-tfomc.gif) no-repeat left;
+}
+#filtxt5 {
+    background: url(http://kubanoms.ru/img/map/p-temryuk.gif) no-repeat left;
+}
+#filtxt6 {
+    background: url(http://kubanoms.ru/img/map/p-novoross.gif) no-repeat left;
+}
+#filtxt7 {
+    background: url(http://kubanoms.ru/img/map/p-gorklyuch.gif) no-repeat left;
+}
+#filtxt8 {
+    background: url(http://kubanoms.ru/img/map/p-tuapse.gif) no-repeat left;
+}
+#filtxt9 {
+    background: url(http://kubanoms.ru/img/map/p-sochi.gif) no-repeat left;
+}
+#filtxt10 {
+    background: url(http://kubanoms.ru/img/map/p-armavir.gif) no-repeat left;
+}
+
+.scroll-top {
+    width: 40px;
+    height: 40px;
+    border: none;
+}
+
+.content-left .content.new-born a {
+    font-size: 0;
+}
+
+.content-left .content.new-born a {
+    font-size: 0;
+}
+
+.content-left .content.polis-problem a {
+    font-size: 0;
+}
+
+.links_items {
+    background: #ffffff url(http://kubanoms.ru/img/links_bg.gif) repeat-y left;
+    text-align: center;
+    padding: 10px 0px 10px 0px;
+}
+.links_items p {
+    padding: 10px 0px 10px 0px;
+    margin: 0px;
+}
+
+table.bottom {
+    background: url(http://kubanoms.ru/img/bottom_bg.jpg) no-repeat bottom;
+}
+
+table.bottom table {
+}
+table td.copy1, table td.copy2, table td.copy3 {
+    padding: 50px 20px 30px 20px;
+    color: #333333;
+    vertical-align: top;
+}
+.copy1 h2 {
+    font-weight: bold;
+    font-size: 17px;
+    color: #0e517e;
+    margin: 0px;
+    padding: 0px 0px 20px 0px;
+}
+.copy1 h3, .copy2 h3, .copy3 h3 {
+    font-weight: bold;
+    font-size: 14px;
+    color: #0e517e;
+    margin: 0px;
+    padding: 0px 0px 10px 0px;
+}
+table td.copy1 p, table td.copy2 p, table td.copy3 p {
+    padding: 0px 0px 10px 0px;
+    margin: 0px;
+    font-size: 14px;
+}
+table td.copy1 a {
+    color: #6c6c6c;
+}
+table td.copy2 a, table td.copy3 a {
+    color: #6c6c6c;
+}
+
+table td.copy4 {
+    background: url(http://kubanoms.ru/img2/bottom_search.png) no-repeat 0px 20px;
+    padding: 0px 20px 20px 20px;
+    font-size: 13px;
+}
+table td.copy4 .input_text {
+    background: transparent;
+    border: none;
+    width: 150px;
+    color: #cf118c;
+    font-size: 14px;
+}
+table td.copy5 {
+    padding: 0px 20px 20px 20px;
+    text-align: right;
+    font-size: 13px;
+}
+.copy5 a {
+    color: #6c6c6c;
+}
+.copy5 a span {
+    color: #6c6c6c;
+    display: none;
+}
+.totop {
+    float: right;
+    padding: 0px 0px 20px 20px;
+}
+
+table td.counters {
+    padding: 0px 0px 10px 0px;
+}
+
+.middle_second {
+    background: #ffffff url(http://kubanoms.ru/img/second_bg.gif) repeat-y left;
+    padding: 15px 0px 15px 0px;
+}
+
+#status {
+    padding: 0px 0px 20px 20px;
+    font-size: 11px;
+}
+#status a {
+    text-decoration: none;
+    color: #0d4f81;
+}
+.print {
+    padding: 0px 20px 15px 20px;
+    float: right;
+}
+.print a {
+    color: #000000;
+    text-decoration: none;
+}
+
+.tabs {
+    clear: both;
+    padding: 20px 0px 0px 0px;
+}
+.tabs div {
+    padding: 5px 10px 5px 10px;
+    background: url(http://kubanoms.ru/img2/lh_bul.gif) no-repeat center;
+    text-align: center;
+    display: inline;
+    font-size: 14px;
+    font-weight: bold;
+}
+.tabs div.tabs_a {
+    background: url(http://kubanoms.ru/img2/lh_abul.gif) no-repeat center;
+}
+.tabs div a {
+    color: #5b798d;
+    text-decoration: none;
+}
+.tabs div.tabs_a a {
+    color: #ffffff;
+    text-decoration: none;
+}
+
+.cnttab {border-style:solid;border-color: #e3e3e3;border-width:0px 1px 1px 0px}
+.cnttab td.cntcel, .cnttab .cntcel1, .cnttab .cntcel2 {border-style:solid;border-color: #e3e3e3;border-width:1px 0px 0px 1px;}
+.cnttab th.cntcel {
+    border-style: solid;
+    border-color: #e3e3e3;
+    border-width: 1px 0px 0px 1px;
+    background: #0e517e;
+    color: #ffffff;
+    font-weight: normal;
+}
+.cnttab td {
+    background: #ffffff;
+}
+.cnttab th.cntcel p { padding: 2px; color: #ffffff; }
+.cnttab td.cntcel p { padding: 2px; }
+.cntrow1 td {
+    background: #f2f6f7;
+}
+
+table td.igimagecell {
+    padding: 0px 20px 20px 0px;
+}
+table td.igimagecell table th {
+    background: #0e2b66;
+    padding: 1px;
+}
+table td.igimagecell table td {
+    color: #ffffff;
+    font-size: 14px;
+    padding: 10px 5px;
+}
+table td.igimagecell table td a {
+    text-decoration: none;
+}
+
+.guestbook_item {
+    padding: 10px 0px 10px 0px;
+    border-bottom: 1px solid #e0e4e7;
+    font-weight: bold;
+    margin: 10px 0px 10px 0px;
+}
+.guestbook {
+    border-top: 1px solid #e0e4e7;
+    margin-top: 15px;
+}
+.guestbook_comment {
+    padding: 10px 0px 10px 0px;
+    font-weight: normal;
+}
+
+.guestbook_pages {
+    padding: 10px 0px 10px 0px;
+    margin: 10px 0px 10px 0px;
+}
+
+.doc_date{
+    padding-bottom: 8px;
+    color: #656565;
+    font-size: 12px;
+}
+.doc_text{
+    padding-bottom: 22px;
+}
+.doc_text1{
+    font-size: 14px;
+    padding-bottom: 10px;
+}
+.doc_text a, .doc_text1 a{
+    color: #0e517e;
+    font-size: 15px;
+}
+.doc_img {
+    padding-bottom: 22px;
+    padding-right: 10px;
+}
+.imgbrd {
+    bo-rder: 1px solid #0069b5;
+}
+
+.doc_title{
+    padding-bottom: 11px;
+    color: #0069b5;
+    font-weight: bold;
+}
+
+.doc_arh {
+    text-align: center;
+    border: 1px solid #e0e4e7;
+    padding: 12px;
+}
+.doc_arh a {
+    text-decoration: none;
+    text-transform: uppercase;
+    color: #333333;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.news_title {
+    background: url(http://kubanoms.ru/img/news_top1.gif) no-repeat left;
+}
+.faq_title {
+    background: url(http://kubanoms.ru/img/faq_top.gif) no-repeat left;
+}
+#tdnews.news_act {
+    background: #ffffff url(http://kubanoms.ru/img/news_act.gif) no-repeat left;
+    padding: 0px 17px 0px 18px;
+}
+#tddocs.news_act {
+    background: #ffffff url(http://kubanoms.ru/img/news_act.gif) no-repeat right;
+    padding: 0px 18px 0px 17px;
+}
+
+#tdnews.news_noact {
+    background: url(http://kubanoms.ru/img/news_noact.gif) no-repeat left;
+    padding: 0 17px 0 18px;
+}
+#tddocs.news_noact {
+    background: url(http://kubanoms.ru/img/news_noact.gif) no-repeat right;
+    padding: 0px 18px 0px 17px;
+}
+
+table td.cat_act {
+    background: #ffffff url(http://kubanoms.ru/img/news_act.gif) no-repeat center;
+    padding: 0px 17px 0px 18px;
+}
+table td.cat_noact {
+    backgr-ound: url(http://kubanoms.ru/img/news_noact.gif) no-repeat left;
+    padding: 0px 17px 0px 18px;
+}
+
+.faq {
+    background: url(http://kubanoms.ru/mg/faq_bg.gif) repeat-y left;
+    padding: 10px 1px 10px 1px;
+    margin: 0px;
+}
+.faq p {
+    padding: 0px 0px 10px 0px;
+    margin: 0px;
+}
+.q {
+    background: #e6eaeb url(http://kubanoms.ru/img/faq_q.gif) repeat left;
+    padding: 10px 20px 10px 25px;
+    margin: 3px 0px 0px 0px;
+    border-top: 1px solid #e0e4e7;
+    border-bottom: 1px solid #e0e4e7;
+}
+.q a {
+    color: #0e517e;
+    font-weight: bold;
+    font-size: 15px;
+    text-decoration: none;
+}
+.qa {
+    background: #0e517e url(http://kubanoms.ru/img/faq_qa.gif) no-repeat left;
+    padding: 11px 20px 11px 25px;
+    margin: 3px 0px 0px 0px;
+}
+.qa a {
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 15px;
+    text-decoration: none;
+}
+.a {
+    padding: 10px 20px 10px 25px;
+}
+
+.cat_act a, .news_act a {
+    text-decoration: none;
+    text-transform: uppercase;
+    color: #000000;
+    font-size: 11px;
+    font-weight: bold;
+}
+.cat_noact a, .news_noact a {
+    text-decoration: none;
+    text-transform: uppercase;
+    color: #888888;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.mainnews {
+    background: #ffffff url(http://kubanoms.ru/img/right_bg2.gif) repeat-y left;
+}
+.doc {
+    padding: 20px 20px 15px 20px;
+}
+
+#leftbox_calendar{
+    float: right;
+}
+#leftbox_calendar form{
+    margin: 0px;
+    padding: 0px;
+}
+#calendar_top{
+}
+#calendar_center{
+    width: 191px;
+    min-height: 195px;
+    padding-left: 40px;
+    padding-right: 15px;
+    overflow: hidden;
+}
+
+#calendar_center select{
+    width: 80px;
+    background: #fff;
+    border: 1px solid #bddde7;
+    padding: 2px;
+    margin: 4px 0px;
+    font-size: 11px;
+}
+#calendar_center input{
+    border: none;
+}
+#calendar_center input{
+    width: 50px;
+    background: #fff;
+    border: 1px solid #bddde7;
+    padding: 2px;
+    margin: 4px 0px;
+    font-size: 11px;
+}
+
+#calendar_center table td{
+    text-align: center;
+    padding: 4px;
+    color: #455155;
+}
+#calendar_center table td.act{
+    font-weight: bold;
+}
+#calendar_center table th{
+    color: #0069b5;
+    padding-bottom: 10px;
+}
+#calendar_center table  th.vih{
+    color: #f332a9;
+}
+
+#calendar_bottom{
+    width: 248px;
+    height: 35px;
+}
+
+.news{
+    overflow: hidden;
+    padding-right: 20px;
+}
+.news h3{
+    font-size: 15px;
+    color: #0069b5;
+    padding: 0px 0px 0px 0px;
+    margin: 0px;
+}
+.news h3 strong{
+    color: #000;
+}
+.news h3.titlenews{
+    font-weight: bold;
+}
+
+.news h3 a {
+    color: #0e517e;
+    font-size: 15px;
+}
+
+.da-te{
+    padding-bottom:12px;
+    padding-top: 0px;
+    color: #f332a9;
+}
+.date{
+    padding-bottom: 12px;
+    padding-top: 0px;
+    color: #656565;
+}
+
+/* Общий контейнер */
+.pagination {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+    justify-content: center;
+    gap: 5px; /* Расстояние между элементами */
+}
+
+/* Стили для элементов списка */
+.pagination .paginate_button {
+    display: inline-block;
+    background: none;
+    padding: 20px 0px 0px 0px;
+}
+
+.pagination .paginate_button a {
+    display: inline-block;
+    padding: 5px 10px; /* Уменьшенные отступы */
+    text-decoration: none;
+    color: #333;
+    border: 1px solid transparent; /* Убираем рамку по умолчанию */
+    font-size: 12px; /* Уменьшенный шрифт */
+    transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Наведение */
+.pagination .paginate_button a:hover {
+    color: #007bff;
+    border-color: #ddd; /* Добавляем рамку при наведении */
+}
+
+/* Активный элемент */
+.pagination .paginate_button.active a {
+    font-weight: bold;
+    color: #007bff;
+    border-color: #007bff;
+}
+
+/* Неактивные элементы (например, предыдущая/следующая, если их нет) */
+.pagination .paginate_button.disabled a {
+    color: #ccc;
+    pointer-events: none;
+}
+
+/* Для предыдущей и следующей кнопок */
+.pagination .paginate_button.previous a,
+.pagination .paginate_button.next a {
+    font-weight: bold;
+}
