@@ -47,17 +47,28 @@ RUN sed -i 's/user = www-data/user = nginx/' /usr/local/etc/php-fpm.d/www.conf &
 
 WORKDIR /var/www
 
+# Устанавливаем переменные окружения
+ENV APP_ENV=production
+ENV APP_DEBUG=false
+ENV APP_URL=http://localhost
+
 # Копируем composer.json и устанавливаем зависимости
 COPY composer.json ./
 ENV COMPOSER_PROCESS_TIMEOUT=600
-RUN composer install --no-dev --optimize-autoloader --prefer-source
+RUN composer install --no-dev --optimize-autoloader --prefer-source --no-interaction
 
-# Копируем package.json и уже скомпилированные ассеты
+# Копируем package.json и устанавливаем зависимости
 COPY package.json ./
-COPY public/build/ ./public/build/
+RUN npm install --no-audit --no-fund --unsafe-perm=true --allow-root
 
 # Копируем приложение
 COPY . .
+
+# Собираем ассеты
+RUN npm run build --unsafe-perm=true --allow-root
+
+# Убедимся что директория public/build существует
+RUN mkdir -p public/build
 
 # Создаем символическую ссылку для storage
 RUN php artisan storage:link
@@ -67,6 +78,9 @@ RUN touch database/database.sqlite && chown nginx:nginx database/database.sqlite
 
 # Устанавливаем права
 RUN chown -R nginx:nginx /var/www && chmod -R 755 /var/www/storage && chmod -R 755 /var/www/public
+
+# Очищаем кэш для уменьшения размера образа
+RUN composer clear-cache && npm cache clean --force --unsafe-perm=true --allow-root
 
 # Настраиваем Supervisor
 RUN mkdir -p /etc/supervisor/conf.d
