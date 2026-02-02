@@ -2,7 +2,7 @@ FROM php:8.5.1-fpm-alpine
 
 # Устанавливаем зависимости
 RUN apk add --no-cache nginx sqlite sqlite-dev curl zip unzip libzip-dev icu-dev supervisor \
-    build-base autoconf make gcc g++ libc-dev file re2c dpkg dpkg-dev
+    build-base autoconf make gcc g++ libc-dev file re2c dpkg dpkg-dev git
 
 # Устанавливаем PHP расширения
 RUN docker-php-ext-install pdo_sqlite zip intl
@@ -47,7 +47,14 @@ RUN sed -i 's/user = www-data/user = nginx/' /usr/local/etc/php-fpm.d/www.conf &
 
 WORKDIR /var/www
 
+# Копируем composer.json и устанавливаем зависимости
+COPY composer.json ./
+ENV COMPOSER_PROCESS_TIMEOUT=600
+RUN composer install --no-dev --optimize-autoloader --prefer-source
 
+# Копируем package.json и уже скомпилированные ассеты
+COPY package.json ./
+COPY public/build/ ./public/build/
 
 # Копируем приложение
 COPY . .
