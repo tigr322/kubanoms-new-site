@@ -52,16 +52,21 @@ ENV APP_ENV=production
 ENV APP_DEBUG=false
 ENV APP_URL=http://localhost
 
-# Копируем composer.json и устанавливаем зависимости
-COPY composer.json ./
-ENV COMPOSER_PROCESS_TIMEOUT=600
-RUN composer install --no-dev --optimize-autoloader
-# Копируем package.json и устанавливаем зависимости
-COPY package.json ./
-RUN npm install --no-audit --no-fund --unsafe-perm=true --allow-root
-
 # Копируем приложение
 COPY . .
+
+# Создаем .env файл для production
+RUN cp .env.example .env
+
+# Устанавливаем зависимости Composer
+
+RUN composer install --no-dev --optimize-autoloader
+
+# Генерируем ключ приложения
+RUN php artisan key:generate --force
+
+# Устанавливаем зависимости Node.js
+RUN npm install --no-audit --no-fund --unsafe-perm=true --allow-root
 
 # Собираем ассеты
 RUN npm run build --unsafe-perm=true --allow-root
