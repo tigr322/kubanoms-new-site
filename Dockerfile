@@ -55,8 +55,7 @@ ENV APP_URL=http://localhost
 # Копируем composer.json и устанавливаем зависимости
 COPY composer.json ./
 ENV COMPOSER_PROCESS_TIMEOUT=600
-RUN composer install --no-dev --optimize-autoloader --prefer-source --no-interaction
-
+RUN composer install --no-dev --optimize-autoloader
 # Копируем package.json и устанавливаем зависимости
 COPY package.json ./
 RUN npm install --no-audit --no-fund --unsafe-perm=true --allow-root
