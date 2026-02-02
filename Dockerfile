@@ -60,7 +60,8 @@ RUN cp .env.example .env
 
 # Настраиваем базу данных SQLite
 RUN sed -i 's/# DB_DATABASE=database\/database.sqlite/DB_DATABASE=database\/database.sqlite/' /var/www/.env && \
-    sed -i 's/DB_DATABASE=laravel/DB_DATABASE=database\/database.sqlite/' /var/www/.env
+    sed -i 's/DB_DATABASE=laravel/DB_DATABASE=database\/database.sqlite/' /var/www/.env && \
+    sed -i 's/APP_URL=.*/APP_URL=http:\/\/localhost/' /var/www/.env
 
 # Устанавливаем зависимости Composer
 
@@ -87,6 +88,9 @@ RUN touch database/database.sqlite && chown nginx:nginx database/database.sqlite
 # Запускаем миграции и сидирование
 RUN php artisan migrate --force && \
     php artisan db:seed --force
+
+# Публикуем Livewire ассеты
+RUN php artisan livewire:publish --assets
 
 # Устанавливаем права - поэтапно для оптимизации
 RUN chown nginx:nginx /var/www/storage /var/www/public /var/www/bootstrap/cache
