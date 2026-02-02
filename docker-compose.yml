@@ -2,14 +2,19 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
     container_name: kubanoms_app
     restart: unless-stopped
+    ports:
+      - "80:80"
     volumes:
       - sqlite_data:/var/www/database
       - storage_data:/var/www/storage
-    ports:
-      - "80:80"
+
 
 volumes:
   sqlite_data:

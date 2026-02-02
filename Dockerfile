@@ -47,24 +47,14 @@ RUN sed -i 's/user = www-data/user = nginx/' /usr/local/etc/php-fpm.d/www.conf &
 
 WORKDIR /var/www
 
-# Устанавливаем переменные окружения
-ENV APP_ENV=production
-ENV APP_DEBUG=true
-ENV APP_URL=http://localhost
 
 # Копируем приложение
 COPY . .
 
-# Создаем .env файл для production
+# Создаем .env файл для production из docker конфигурации
 RUN cp .env.example .env
 
-# Настраиваем базу данных SQLite
-RUN sed -i 's/# DB_DATABASE=database\/database.sqlite/DB_DATABASE=database\/database.sqlite/' /var/www/.env && \
-    sed -i 's/DB_DATABASE=laravel/DB_DATABASE=database\/database.sqlite/' /var/www/.env && \
-    sed -i 's/APP_URL=.*/APP_URL=http:\/\/localhost/' /var/www/.env
-
-# Устанавливаем зависимости Composer
-
+# Устанавливаем зависимости Composer с увеличенным таймаутом
 RUN composer install --no-dev --optimize-autoloader
 
 # Генерируем ключ приложения
@@ -102,39 +92,13 @@ RUN chmod -R 775 /var/www/storage/logs /var/www/storage/framework/cache /var/www
 # Очищаем кэш для уменьшения размера образа
 RUN composer clear-cache && npm cache clean --force --unsafe-perm=true --allow-root
 
-# Настраиваем Supervisor
-RUN mkdir -p /etc/supervisor/conf.d
+# Устанавливаем правильные права доступа для Laravel
+RUN chown -R nginx:nginx /var/www && \
+    chmod -R 755 /var/www && \
+    chmod -R 775 /var/www/storage /var/www/bootstrap/cache && \
+    chmod 644 /var/www/bootstrap/app.php /var/www/bootstrap/providers.php
 
-# Создаем конфигурацию Supervisor
-RUN echo '[unix_http_server]' > /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'file=/var/run/supervisor.sock' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo '' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo '[supervisord]' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'logfile=/var/log/supervisor.log' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'logfile_maxbytes=50MB' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'logfile_backups=10' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'loglevel=info' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'pidfile=/var/run/supervisord.pid' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'nodaemon=true' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo '' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo '[rpcinterface:supervisor]' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo '' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo '[supervisorctl]' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'serverurl=unix:///var/run/supervisor.sock' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo '' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo '[program:php-fpm]' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'command=php-fpm' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'priority=5' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo '' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo '[program:nginx]' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'command=nginx -g "daemon off;"' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'priority=10' >> /etc/supervisor/conf.d/supervisord.conf
 
 EXPOSE 80
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["php", "/var/www/artisan", "serve", "--host=0.0.0.0", "--port=80"]
