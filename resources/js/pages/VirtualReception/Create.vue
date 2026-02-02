@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AuthLayout from '@/layouts/AuthLayout.vue';
 
 const props = defineProps({
     esiaUser: Object,
@@ -36,7 +36,7 @@ const handleFileChange = (event) => {
 <template>
     <Head title="Виртуальная приемная" />
 
-    <AuthenticatedLayout>
+    <AuthLayout>
         <div class="py-12">
             <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
@@ -44,7 +44,7 @@ const handleFileChange = (event) => {
                         <h1 class="text-2xl font-bold text-gray-900 mb-6">
                             Виртуальная приемная
                         </h1>
-                        
+
                         <div v-if="esiaUser" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                             <div class="flex items-center">
                                 <svg class="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -217,5 +217,5 @@ const handleFileChange = (event) => {
                 </div>
             </div>
         </div>
-    </AuthenticatedLayout>
+    </AuthLayout>
 </template>

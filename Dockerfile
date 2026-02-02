@@ -49,7 +49,7 @@ WORKDIR /var/www
 
 # Устанавливаем переменные окружения
 ENV APP_ENV=production
-ENV APP_DEBUG=false
+ENV APP_DEBUG=true
 ENV APP_URL=http://localhost
 
 # Копируем приложение
@@ -57,6 +57,10 @@ COPY . .
 
 # Создаем .env файл для production
 RUN cp .env.example .env
+
+# Настраиваем базу данных SQLite
+RUN sed -i 's/# DB_DATABASE=database\/database.sqlite/DB_DATABASE=database\/database.sqlite/' /var/www/.env && \
+    sed -i 's/DB_DATABASE=laravel/DB_DATABASE=database\/database.sqlite/' /var/www/.env
 
 # Устанавливаем зависимости Composer
 

@@ -45,7 +45,7 @@
         {{-- Navbar Sitemap JavaScript --}}
         <script src="/js/navbar-sitemap.js"></script>
 
-        @vite(['resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
+        @vite(['resources/js/app.ts'])
         @inertiaHead
     </head>
     <body class="font-sans antialiased">
