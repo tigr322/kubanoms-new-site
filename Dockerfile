@@ -84,8 +84,16 @@ RUN php artisan storage:link
 # Создаем базу данных
 RUN touch database/database.sqlite && chown nginx:nginx database/database.sqlite
 
-# Устанавливаем права
-RUN chown -R nginx:nginx /var/www && chmod -R 755 /var/www/storage && chmod -R 755 /var/www/public
+# Запускаем миграции и сидирование
+RUN php artisan migrate --force && \
+    php artisan db:seed --force
+
+# Устанавливаем права - поэтапно для оптимизации
+RUN chown nginx:nginx /var/www/storage /var/www/public /var/www/bootstrap/cache
+
+RUN chmod -R 755 /var/www/storage /var/www/public
+
+RUN chmod -R 775 /var/www/storage/logs /var/www/storage/framework/cache /var/www/storage/framework/sessions /var/www/storage/framework/views
 
 # Очищаем кэш для уменьшения размера образа
 RUN composer clear-cache && npm cache clean --force --unsafe-perm=true --allow-root

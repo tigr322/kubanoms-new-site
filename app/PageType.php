@@ -6,6 +6,7 @@ enum PageType: int
 {
     case PAGE = 1;
     case NEWS = 2;
+    case DOCUMENT = 3;
     case SITEMAP = 7;
 
     public function getLabel(): string
@@ -13,6 +14,7 @@ enum PageType: int
         return match($this) {
             self::PAGE => 'Страница',
             self::NEWS => 'Новость',
+            self::DOCUMENT => 'Документ',
             self::SITEMAP => 'Карта сайта',
         };
     }
@@ -22,6 +24,7 @@ enum PageType: int
         return match($this) {
             self::PAGE => 'primary',
             self::NEWS => 'info',
+            self::DOCUMENT => 'success',
             self::SITEMAP => 'warning',
         };
     }
