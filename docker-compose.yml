@@ -12,6 +12,7 @@ services:
     ports:
       - "80:80"
     volumes:
+      - ./:/var/www
       - sqlite_data:/var/www/database
       - storage_data:/var/www/storage
 
