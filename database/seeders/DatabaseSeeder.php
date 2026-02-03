@@ -53,19 +53,19 @@ class DatabaseSeeder extends Seeder
             [
                 'email' => 'admin@admin.com',
                 'name' => 'Admin User',
-                'password' => Hash::make('YzoLPoW4t1sbTD'),
+                'password' => Hash::make('YzoLPoW4t1sbTD123'),
                 'role' => 'admin',
             ],
             [
                 'email' => 'root@admin.com',
                 'name' => 'Admin User',
-                'password' => Hash::make('cf1IOgW1QRPXKj'),
+                'password' => Hash::make('cf1IOgW1QRPXKj123'),
                 'role' => 'admin',
             ],
             [
                 'email' => 'editor@admin.com',
                 'name' => 'Admin User',
-                'password' => Hash::make('ekkqZxwbOe3cOR'),
+                'password' => Hash::make('ekkqZxwbOe3cOR123'),
                 'role' => 'admin',
             ],
         ];
