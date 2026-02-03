@@ -20,7 +20,7 @@ class BranchController extends Controller
         return Inertia::render('Branches', [
             'menus' => $layout['menus'],
             'settings' => $layout['settings'],
-            'special' => $request->cookie('special', 0),
+            'special' => (int) $request->cookie('special', '0'),
         ]);
     }
 }

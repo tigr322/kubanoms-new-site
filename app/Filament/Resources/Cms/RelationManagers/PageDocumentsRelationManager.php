@@ -19,8 +19,12 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
+/**
+ * @property CmsPage $ownerRecord
+ */
 class PageDocumentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'documentsAll';
@@ -35,13 +39,7 @@ class PageDocumentsRelationManager extends RelationManager
             return false;
         }
 
-        $type = $ownerRecord->page_of_type;
-
-        if ($type instanceof PageType) {
-            return $type === PageType::DOCUMENT;
-        }
-
-        return (int) $type === PageType::DOCUMENT->value;
+        return $ownerRecord->page_of_type === PageType::DOCUMENT;
     }
 
     public function form(Schema $schema): Schema
@@ -112,9 +110,15 @@ class PageDocumentsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('file.original_name')
                     ->label('Файл')
                     ->searchable()
-                    ->url(fn (CmsPageDocument $record): ?string => $record->file?->path
-                        ? \Storage::disk('public')->url($record->file->path)
-                        : null)
+                    ->url(function (CmsPageDocument $record): ?string {
+                        $file = $record->file;
+
+                        if (! $file?->path) {
+                            return null;
+                        }
+
+                        return Storage::disk('public')->url($file->path);
+                    })
                     ->openUrlInNewTab(),
 
                 Tables\Columns\TextColumn::make('order')
@@ -166,10 +170,6 @@ class PageDocumentsRelationManager extends RelationManager
                         $nextOrder = ((int) $this->ownerRecord->documentsAll()->max('order')) + 1;
 
                         foreach ($files as $file) {
-                            if (! $file instanceof TemporaryUploadedFile) {
-                                continue;
-                            }
-
                             $path = $file->store('cms/documents/files', 'public');
 
                             $cmsFile = CmsFile::create([
@@ -179,7 +179,7 @@ class PageDocumentsRelationManager extends RelationManager
                                 'extension' => $file->getClientOriginalExtension(),
                                 'description' => '',
                                 'create_date' => now(),
-                                'create_user' => Auth::user()?->name ?? 'system',
+                                'create_user' => Auth::user()->name,
                             ]);
 
                             $title = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
@@ -213,16 +213,28 @@ class PageDocumentsRelationManager extends RelationManager
                         ->action(function (Collection $records, array $data): void {
                             $groupTitle = (string) $data['group_title'];
 
-                            $records->each(fn (CmsPageDocument $record) => $record->update([
-                                'group_title' => $groupTitle,
-                            ]));
+                            foreach ($records as $record) {
+                                if (! $record instanceof CmsPageDocument) {
+                                    continue;
+                                }
+
+                                $record->update([
+                                    'group_title' => $groupTitle,
+                                ]);
+                            }
                         }),
                     BulkAction::make('clearGroup')
                         ->label('Убрать таблицу')
                         ->requiresConfirmation()
-                        ->action(fn (Collection $records) => $records->each(
-                            fn (CmsPageDocument $record) => $record->update(['group_title' => null]),
-                        )),
+                        ->action(function (Collection $records): void {
+                            foreach ($records as $record) {
+                                if (! $record instanceof CmsPageDocument) {
+                                    continue;
+                                }
+
+                                $record->update(['group_title' => null]);
+                            }
+                        }),
                     \Filament\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
@@ -249,14 +261,14 @@ class PageDocumentsRelationManager extends RelationManager
             'extension' => $upload->getClientOriginalExtension(),
             'description' => $data['title'] ?? '',
             'create_date' => now(),
-            'create_user' => Auth::user()?->name ?? 'system',
+            'create_user' => Auth::user()->name,
         ]);
 
         // Создаем документ с file_id
         $data['file_id'] = $cmsFile->id;
         $data['page_id'] = $this->ownerRecord->id;
 
-        return static::getModel()::create($data);
+        return CmsPageDocument::create($data);
     }
 
     protected function handleRecordUpdate(CmsPageDocument $record, array $data): CmsPageDocument
@@ -276,7 +288,7 @@ class PageDocumentsRelationManager extends RelationManager
                 'extension' => $upload->getClientOriginalExtension(),
                 'description' => $data['title'] ?? '',
                 'create_date' => now(),
-                'create_user' => Auth::user()?->name ?? 'system',
+                'create_user' => Auth::user()->name,
             ]);
 
             $data['file_id'] = $cmsFile->id;

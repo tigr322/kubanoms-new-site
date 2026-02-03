@@ -31,7 +31,7 @@ class HomeController extends Controller
             ...$this->pageResolverService->buildViewModel($page),
             'latest_news' => $latest['news']->map($this->transformListItem())->values(),
             'latest_documents' => $latest['documents']->map($this->transformListItem())->values(),
-            'special' => $request->cookie('special', 0),
+            'special' => (int) $request->cookie('special', '0'),
         ]);
     }
 

@@ -53,6 +53,7 @@ class CmsPageForm
                         1 => 'Страница',
                         2 => 'Новость',
                         3 => 'Документ',
+                        5 => 'Публикация',
                         7 => 'Карта сайта',
                     ])
                     ->required()
@@ -61,6 +62,7 @@ class CmsPageForm
                         $template = match ((int) $state) {
                             2 => 'news',
                             3 => 'document',
+                            5 => 'publication',
                             7 => 'sitemap',
                             default => null,
                         };

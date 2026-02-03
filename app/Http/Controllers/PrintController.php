@@ -24,19 +24,11 @@ class PrintController extends Controller
 
         $isAdmin = $request->user()?->role === 'admin';
 
-        $status = $page->page_status;
-        $isPublished = $status instanceof PageStatus
-            ? $status === PageStatus::PUBLISHED
-            : (int) $status === PageStatus::PUBLISHED->value;
-
-        if (! $isPublished && ! $isAdmin) {
+        if ($page->page_status !== PageStatus::PUBLISHED && ! $isAdmin) {
             abort(404);
         }
 
-        $type = $page->page_of_type;
-        $typeValue = $type instanceof PageType ? $type->value : (int) $type;
-
-        if (! in_array($typeValue, [PageType::NEWS->value, PageType::DOCUMENT->value], true)) {
+        if (! in_array($page->page_of_type, [PageType::NEWS, PageType::DOCUMENT], true)) {
             abort(404);
         }
 

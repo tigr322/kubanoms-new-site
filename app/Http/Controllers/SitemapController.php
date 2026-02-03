@@ -20,7 +20,7 @@ class SitemapController extends Controller
         return Inertia::render('Sitemap', [
             'menus' => $layout['menus'],
             'settings' => $layout['settings'],
-            'special' => $request->cookie('special', 0),
+            'special' => (int) $request->cookie('special', '0'),
         ]);
     }
 }

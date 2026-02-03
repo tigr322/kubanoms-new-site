@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Cms\CmsSettings;
 
 use DOMDocument;
+use DOMElement;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -72,8 +73,8 @@ class BannerSettingHelper
 
             $items[] = [
                 'image' => $relative,
-                'url' => $image->parentNode?->nodeName === 'a'
-                    ? $image->parentNode->getAttribute('href')
+                'url' => $image->parentNode instanceof DOMElement && $image->parentNode->tagName === 'a'
+                    ? ($image->parentNode->getAttribute('href') ?: null)
                     : null,
                 'alt' => $image->getAttribute('alt') ?: null,
             ];

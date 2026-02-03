@@ -21,18 +21,6 @@ class CmsPage extends Model
 
     protected $guarded = [];
 
-    protected $casts = [
-        'publication_date' => 'datetime',
-        'create_date' => 'datetime',
-        'update_date' => 'datetime',
-        'delete_date' => 'datetime',
-        'images' => 'array',
-        'attachments' => 'array',
-        'is_visible' => 'boolean',
-        'page_status' => PageStatus::class,
-        'page_of_type' => PageType::class,
-    ];
-
     public $timestamps = false;
 
     protected static function boot()
@@ -53,7 +41,7 @@ class CmsPage extends Model
             // Автоматическая установка даты создания
             if (empty($model->create_date)) {
                 $model->create_date = Carbon::now();
-                $model->create_user = Auth::user()?->name ?? 'system';
+                $model->create_user = optional(Auth::user())->name ?? 'system';
             }
         });
 
@@ -65,7 +53,7 @@ class CmsPage extends Model
 
             // Автоматическое обновление даты изменения
             $model->update_date = Carbon::now();
-            $model->update_user = Auth::user()?->name ?? 'system';
+            $model->update_user = optional(Auth::user())->name ?? 'system';
         });
     }
 
@@ -139,8 +127,14 @@ class CmsPage extends Model
     {
         return [
             'publication_date' => 'datetime',
+            'create_date' => 'datetime',
+            'update_date' => 'datetime',
+            'delete_date' => 'datetime',
             'images' => 'array',
             'attachments' => 'array',
+            'is_visible' => 'boolean',
+            'page_status' => PageStatus::class,
+            'page_of_type' => PageType::class,
         ];
     }
 

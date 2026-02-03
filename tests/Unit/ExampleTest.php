@@ -9,8 +9,9 @@ class ExampleTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_that_true_is_true()
+    public function test_app_name_is_configured(): void
     {
-        $this->assertTrue(true);
+        $this->assertIsString(config('app.name'));
+        $this->assertNotEmpty(config('app.name'));
     }
 }

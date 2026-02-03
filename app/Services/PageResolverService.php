@@ -67,18 +67,14 @@ class PageResolverService
 
     public function layout(): array
     {
-        $mapMenu = function (Collection $items) use (&$mapMenu): Collection {
-            return $items->map(function ($item) use ($mapMenu) {
+        $mapMenu = function (Collection $items) use (&$mapMenu): array {
+            return $items->map(function ($item) use (&$mapMenu): array {
                 $url = null;
 
                 if ($item->page) {
-                    $status = $item->page->page_status;
-
-                    $isPublished = $status instanceof PageStatus
-                        ? $status === PageStatus::PUBLISHED
-                        : (int) $status === PageStatus::PUBLISHED->value;
-
-                    $url = $isPublished ? $item->page->url : null;
+                    $url = $item->page->page_status === PageStatus::PUBLISHED
+                        ? $item->page->url
+                        : null;
                 }
 
                 return [
@@ -87,7 +83,7 @@ class PageResolverService
                     'url' => $url ?? $item->url,
                     'children' => $mapMenu($item->children ?? collect()),
                 ];
-            });
+            })->values()->all();
         };
 
         $settings = $this->settingRepository->getMany([

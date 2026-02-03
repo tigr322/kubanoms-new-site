@@ -25,11 +25,17 @@ class CmsPageDocument extends Model
         'document_date' => 'date',
     ];
 
+    /**
+     * @return BelongsTo<CmsPage, $this>
+     */
     public function page(): BelongsTo
     {
         return $this->belongsTo(CmsPage::class, 'page_id');
     }
 
+    /**
+     * @return BelongsTo<CmsFile, $this>
+     */
     public function file(): BelongsTo
     {
         return $this->belongsTo(CmsFile::class, 'file_id');

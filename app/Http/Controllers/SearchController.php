@@ -26,7 +26,7 @@ class SearchController extends Controller
             'results' => $results,
             'menus' => $layout['menus'],
             'settings' => $layout['settings'],
-            'special' => $request->cookie('special', 0),
+            'special' => (int) $request->cookie('special', '0'),
         ]);
     }
 

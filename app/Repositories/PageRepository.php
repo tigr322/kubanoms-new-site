@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\Cms\CmsPage;
+use App\PageStatus;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
@@ -35,7 +36,7 @@ class PageRepository
 
         return CmsPage::query()
             ->where('page_of_type', $pageType)
-            ->where('page_status', 3)
+            ->where('page_status', PageStatus::PUBLISHED->value)
             ->when(
                 $template,
                 fn ($query) => $query->where('template', $template),
@@ -49,7 +50,7 @@ class PageRepository
     public function search(string $term, int $limit = 10): Collection
     {
         return CmsPage::query()
-            ->where('page_status', 3)
+            ->where('page_status', PageStatus::PUBLISHED->value)
             ->where(function ($query) use ($term): void {
                 $query->where('title', 'like', '%'.$term.'%')
                     ->orWhere('content', 'like', '%'.$term.'%');
@@ -67,18 +68,8 @@ class PageRepository
             throw new ModelNotFoundException('Page not found');
         }
 
-        // Проверяем статус страницы с учетом enum
-        $pageStatus = $page->page_status;
-        if ($pageStatus instanceof \App\PageStatus) {
-            // Если это enum, сравниваем с enum значением
-            if ($pageStatus !== \App\PageStatus::PUBLISHED) {
-                throw new ModelNotFoundException('Page not published');
-            }
-        } else {
-            // Если это старое значение (int), сравниваем с числом
-            if ((int) $pageStatus !== 3) {
-                throw new ModelNotFoundException('Page not published');
-            }
+        if ($page->page_status !== PageStatus::PUBLISHED) {
+            throw new ModelNotFoundException('Page not published');
         }
 
         return $page;

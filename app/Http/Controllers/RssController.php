@@ -44,7 +44,7 @@ class RssController extends Controller
             );
             $absoluteUrl = url($page->url);
 
-            $titlePrefix = $publishedAt?->format('d.m.Y').'. ';
+            $titlePrefix = $publishedAt->format('d.m.Y').'. ';
             $title = $titlePrefix.($page->title ?? '');
 
             $description = $page->meta_description;

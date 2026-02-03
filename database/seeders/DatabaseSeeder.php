@@ -49,26 +49,37 @@ class DatabaseSeeder extends Seeder
 
     private function seedUsers(): void
     {
-        User::updateOrCreate(
-            ['email' => 'admin@admin.com'],
+        $adminUsers = [
             [
+                'email' => 'admin@admin.com',
                 'name' => 'Admin User',
                 'password' => Hash::make('YzoLPoW4t1sbTD'),
                 'role' => 'admin',
             ],
-            ['email' => 'root@admin.com'],
             [
+                'email' => 'root@admin.com',
                 'name' => 'Admin User',
                 'password' => Hash::make('cf1IOgW1QRPXKj'),
                 'role' => 'admin',
             ],
-            ['email' => 'editor@admin.com'],
             [
+                'email' => 'editor@admin.com',
                 'name' => 'Admin User',
                 'password' => Hash::make('ekkqZxwbOe3cOR'),
                 'role' => 'admin',
             ],
-        );
+        ];
+
+        foreach ($adminUsers as $user) {
+            User::updateOrCreate(
+                ['email' => $user['email']],
+                [
+                    'name' => $user['name'],
+                    'password' => $user['password'],
+                    'role' => $user['role'],
+                ],
+            );
+        }
 
         User::updateOrCreate(
             ['email' => 'editor@example.com'],
@@ -414,8 +425,11 @@ class DatabaseSeeder extends Seeder
         $page->meta_description = $data['meta_description'] ?? null;
         $page->meta_keywords = $data['meta_keywords'] ?? null;
         $page->template = $data['template'] ?? 'default';
-        $page->page_of_type = (int) ($data['page_of_type'] ?? PageType::PAGE->value);
-        $page->page_status = (int) ($data['page_status'] ?? PageStatus::PUBLISHED->value);
+        $pageTypeValue = (int) ($data['page_of_type'] ?? PageType::PAGE->value);
+        $pageStatusValue = (int) ($data['page_status'] ?? PageStatus::PUBLISHED->value);
+
+        $page->page_of_type = PageType::tryFrom($pageTypeValue) ?? PageType::PAGE;
+        $page->page_status = PageStatus::tryFrom($pageStatusValue) ?? PageStatus::PUBLISHED;
 
         if (array_key_exists('images', $data) && is_array($data['images'])) {
             $page->images = $data['images'];

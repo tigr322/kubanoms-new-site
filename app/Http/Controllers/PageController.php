@@ -3,9 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\PageShowRequest;
+use App\Models\Cms\CmsPage;
+use App\Models\Cms\CmsPageDocument;
 use App\Models\Cms\CmsSetting;
+use App\PageStatus;
+use App\PageType;
 use App\Repositories\PageRepository;
 use App\Services\PageResolverService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -28,18 +33,8 @@ class PageController extends Controller
 
         $isAdmin = $request->user()?->role === 'admin';
 
-        // Проверяем статус страницы с учетом enum
-        $pageStatus = $page->page_status;
-        if ($pageStatus instanceof \App\PageStatus) {
-            // Если это enum, сравниваем с enum значением
-            if ($pageStatus !== \App\PageStatus::PUBLISHED && ! $isAdmin) {
-                throw new ModelNotFoundException('Page unpublished');
-            }
-        } else {
-            // Если это старое значение (int), сравниваем с числом
-            if ((int) $pageStatus !== 3 && ! $isAdmin) {
-                throw new ModelNotFoundException('Page unpublished');
-            }
+        if ($page->page_status !== PageStatus::PUBLISHED && ! $isAdmin) {
+            throw new ModelNotFoundException('Page unpublished');
         }
 
         $props = $this->pageResolverService->buildViewModel($page);
@@ -49,35 +44,22 @@ class PageController extends Controller
             $props['contacts'] = CmsSetting::getContacts();
         }
 
-        // Определяем компонент с учетом enum
-        $pageType = $page->page_of_type;
-        if ($pageType instanceof \App\PageType) {
-            // Если это enum, используем enum значения
-            $component = match ($pageType) {
-                \App\PageType::NEWS => 'NewsDetail',
-                \App\PageType::DOCUMENT => 'DocumentDetail',
-                \App\PageType::SITEMAP => 'Sitemap',
-                default => 'GenericPage',
-            };
-        } else {
-            // Если это старое значение (int), используем числовые значения
-            $component = match ((int) $pageType) {
-                2 => 'NewsDetail',
-                3 => 'DocumentDetail',
-                5 => 'PublicationDetail',
-                7 => 'Sitemap',
-                default => 'GenericPage',
-            };
-        }
+        $component = match ($page->page_of_type) {
+            PageType::NEWS => 'NewsDetail',
+            PageType::DOCUMENT => 'DocumentDetail',
+            PageType::SITEMAP => 'Sitemap',
+            PageType::PUBLICATION => 'PublicationDetail',
+            default => 'GenericPage',
+        };
 
         return Inertia::render($component, [
             ...$props,
-            'special' => $request->cookie('special', 0),
+            'special' => (int) $request->cookie('special', '0'),
             ...$this->documentPageProps($request, $component, $page),
         ]);
     }
 
-    private function documentPageProps(PageShowRequest $request, string $component, \App\Models\Cms\CmsPage $page): array
+    private function documentPageProps(PageShowRequest $request, string $component, CmsPage $page): array
     {
         if ($component !== 'DocumentDetail') {
             return [];
@@ -121,7 +103,8 @@ class PageController extends Controller
             ->orderBy('order')
             ->paginate(50)
             ->withQueryString()
-            ->through(function (\App\Models\Cms\CmsPageDocument $doc): array {
+            ->through(function (Model $doc): array {
+                /** @var CmsPageDocument $doc */
                 $filePath = $doc->file?->path;
 
                 return [

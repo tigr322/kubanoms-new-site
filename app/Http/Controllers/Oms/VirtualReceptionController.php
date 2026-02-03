@@ -23,7 +23,7 @@ class VirtualReceptionController extends Controller
         return Inertia::render('VirtualReception', [
             'title' => 'Виртуальная приёмная',
             ...$this->pageResolverService->layout(),
-            'special' => $request->cookie('special', 0),
+            'special' => (int) $request->cookie('special', '0'),
         ]);
     }
 
