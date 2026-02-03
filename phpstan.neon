@@ -1,0 +1,21 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+
+    # Laravel 12 projects often define casts in the casts() method.
+    parseModelCastsMethod: true
+
+    paths:
+        - app
+        - config
+        - database
+        - routes
+        - tests
+
+    # Codex sandbox blocks listening sockets; limit PHPStan parallelization.
+    parallel:
+        maximumNumberOfProcesses: 1
+
+    tmpDir: storage/framework/phpstan

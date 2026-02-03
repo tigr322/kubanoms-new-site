@@ -7,6 +7,9 @@
     "mcp": true,
     "sail": false,
     "skills": [
-        "wayfinder-development"
+        "wayfinder-development",
+        "livewire-development",
+        "inertia-vue-development",
+        "tailwindcss-development"
     ]
 }
