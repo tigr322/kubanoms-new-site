@@ -4,8 +4,10 @@ use App\Http\Controllers\BranchController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Oms\VirtualReceptionController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\PrintController;
 use App\Http\Controllers\RssController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\VirtualReceptionController as NewVirtualReceptionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -16,6 +18,11 @@ Route::get('/dashboard', function () {
 })->middleware(['auth'])->name('dashboard');
 
 Route::get('/rss.xml', [RssController::class, 'index'])->name('rss');
+Route::get('/sitemap', [SitemapController::class, 'index'])->name('sitemap');
+Route::get('/sitemap.html', [SitemapController::class, 'index']);
+Route::get('/print/{url}', [PrintController::class, 'show'])
+    ->where('url', '.*')
+    ->name('print');
 Route::get('/search', [SearchController::class, 'index'])->name('search');
 Route::get('/branches', [BranchController::class, 'index'])->name('branches');
 
@@ -40,7 +47,7 @@ Route::prefix('virtual-reception')->name('virtual-reception.')->group(function (
 
 // Filament панель обрабатывает /admin; старые заглушки удалены.
 
-$reserved = implode('|', ['admin', 'api', 'rss\\.xml', 'search', 'branches', 'virtual-reception']);
+$reserved = implode('|', ['admin', 'api', 'rss\\.xml', 'search', 'branches', 'virtual-reception', 'sitemap', 'print']);
 
 Route::get('/{url}', [PageController::class, 'show'])
     ->where('url', '^(?!('.$reserved.'))[A-Za-z0-9\\-\\/_\\.]+$')

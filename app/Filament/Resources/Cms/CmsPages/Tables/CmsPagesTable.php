@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Cms\CmsPages\Tables;
 
-use App\PageStatus;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -34,7 +33,8 @@ class CmsPagesTable
                         if ($state instanceof \App\PageStatus) {
                             return $state->getLabel();
                         }
-                        return match((int)$state) {
+
+                        return match ((int) $state) {
                             1 => 'Черновик',
                             2 => 'На модерации',
                             3 => 'Опубликовано',
@@ -45,7 +45,8 @@ class CmsPagesTable
                         if ($state instanceof \App\PageStatus) {
                             return $state->getColor();
                         }
-                        return match((int)$state) {
+
+                        return match ((int) $state) {
                             1 => 'gray',
                             2 => 'warning',
                             3 => 'success',
@@ -59,9 +60,11 @@ class CmsPagesTable
                         if ($state instanceof \App\PageType) {
                             return $state->getLabel();
                         }
-                        return match((int)$state) {
+
+                        return match ((int) $state) {
                             1 => 'Страница',
                             2 => 'Новость',
+                            3 => 'Документ',
                             7 => 'Карта сайта',
                             default => 'Неизвестно'
                         };
@@ -70,9 +73,11 @@ class CmsPagesTable
                         if ($state instanceof \App\PageType) {
                             return $state->getColor();
                         }
-                        return match((int)$state) {
+
+                        return match ((int) $state) {
                             1 => 'primary',
                             2 => 'info',
+                            3 => 'success',
                             7 => 'warning',
                             default => 'danger'
                         };

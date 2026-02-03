@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\PageShowRequest;
-use App\Models\Cms\CmsPage;
 use App\Models\Cms\CmsSetting;
 use App\Repositories\PageRepository;
 use App\Services\PageResolverService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,16 +20,11 @@ class PageController extends Controller
 
     public function show(PageShowRequest $request, string $url): Response
     {
-        // Отладочный лог
-        \Log::info('PageController::show called with URL: ' . $url);
-
         $page = $this->pageRepository->findByUrl($url);
 
         if (! $page) {
             abort(404);
         }
-
-        \Log::info('Found page: ' . $page->title . ', template: ' . $page->template);
 
         $isAdmin = $request->user()?->role === 'admin';
 
@@ -37,20 +32,14 @@ class PageController extends Controller
         $pageStatus = $page->page_status;
         if ($pageStatus instanceof \App\PageStatus) {
             // Если это enum, сравниваем с enum значением
-            if ($pageStatus !== \App\PageStatus::PUBLISHED && !$isAdmin) {
+            if ($pageStatus !== \App\PageStatus::PUBLISHED && ! $isAdmin) {
                 throw new ModelNotFoundException('Page unpublished');
             }
         } else {
             // Если это старое значение (int), сравниваем с числом
-            if ((int) $pageStatus !== 3 && !$isAdmin) {
+            if ((int) $pageStatus !== 3 && ! $isAdmin) {
                 throw new ModelNotFoundException('Page unpublished');
             }
-        }
-
-        // Если это страница карты сайта, используем специальную логику
-        if ($page->template === 'sitemap' || $page->url === '/sitemap') {
-            \Log::info('Using sitemap logic for page: ' . $page->title);
-            return $this->showSitemap($request, $page);
         }
 
         $props = $this->pageResolverService->buildViewModel($page);
@@ -66,7 +55,8 @@ class PageController extends Controller
             // Если это enum, используем enum значения
             $component = match ($pageType) {
                 \App\PageType::NEWS => 'NewsDetail',
-                \App\PageType::SITEMAP => 'DocumentDetail', // Предполагаем, что 3 это SITEMAP
+                \App\PageType::DOCUMENT => 'DocumentDetail',
+                \App\PageType::SITEMAP => 'Sitemap',
                 default => 'GenericPage',
             };
         } else {
@@ -75,6 +65,7 @@ class PageController extends Controller
                 2 => 'NewsDetail',
                 3 => 'DocumentDetail',
                 5 => 'PublicationDetail',
+                7 => 'Sitemap',
                 default => 'GenericPage',
             };
         }
@@ -82,139 +73,74 @@ class PageController extends Controller
         return Inertia::render($component, [
             ...$props,
             'special' => $request->cookie('special', 0),
+            ...$this->documentPageProps($request, $component, $page),
         ]);
     }
 
-    /**
-     * Показывает карту сайта
-     */
-    private function showSitemap(PageShowRequest $request, CmsPage $page): Response
+    private function documentPageProps(PageShowRequest $request, string $component, \App\Models\Cms\CmsPage $page): array
     {
-        \Log::info('showSitemap method called');
-
-        // Получаем все видимые страницы с их дочерними страницами
-        $pages = CmsPage::with(['children' => function($query) {
-                $query->where('page_status', 3) // Только опубликованные
-                      ->orderBy('title', 'asc');
-            }])
-            ->where('page_status', 3) // Только опубликованные
-            ->whereNull('parent_id') // Только корневые страницы
-            ->orderBy('title', 'asc')
-            ->get();
-
-        \Log::info('Found ' . $pages->count() . ' root pages');
-
-        // Формируем структуру для карты сайта
-        $link_list = $this->buildSitemapStructure($pages);
-
-        \Log::info('Built sitemap structure with ' . count($link_list) . ' items');
-
-        // Создаем HTML для карты сайта
-        $sitemapHtml = $this->generateSitemapHtml($link_list);
-
-        // Получаем layout данные через PageResolverService
-        $layoutData = $this->pageResolverService->layout();
-
-        \Log::info('Layout data keys: ' . implode(', ', array_keys($layoutData)));
-
-        // Добавляем карту сайта в настройки
-        $layoutData['settings']['sitemap'] = $sitemapHtml;
-
-        $result = Inertia::render('Home', [
-            'page' => [
-                'title' => 'Карта сайта',
-                'meta_description' => 'Карта сайта ТФОМС Краснодарского края',
-                'meta_keywords' => 'карта сайта, ТФОМС, Краснодарский край'
-            ],
-            ...$layoutData,
-            'special' => $request->cookie('special', 0),
-            'latest_news' => [],
-            'latest_documents' => [],
-        ]);
-
-        \Log::info('Rendering Home component with sitemap');
-
-        return $result;
-    }
-
-    /**
-     * Генерирует HTML для карты сайта
-     */
-    private function generateSitemapHtml(array $link_list): string
-    {
-        $html = '<div class="sitemap-container">';
-        $html .= '<h2>Карта сайта</h2>';
-        $html .= '<ul class="sitemap-list">';
-
-        foreach ($link_list as $item) {
-            $html .= $this->generateSitemapItemHtml($item);
+        if ($component !== 'DocumentDetail') {
+            return [];
         }
 
-        $html .= '</ul></div>';
-        return $html;
-    }
+        $groups = $page->documentsAll()
+            ->select('group_title')
+            ->whereNotNull('group_title')
+            ->distinct()
+            ->orderBy('group_title')
+            ->pluck('group_title')
+            ->values();
 
-    /**
-     * Генерирует HTML для элемента карты сайта
-     */
-    private function generateSitemapItemHtml(array $item, int $level = 0): string
-    {
-        $html = '<li class="sitemap-item">';
-        $html .= '<a href="' . htmlspecialchars($item['url']) . '" class="sitemap-link">' . htmlspecialchars($item['title']) . '</a>';
+        $hasUngrouped = $page->documentsAll()
+            ->whereNull('group_title')
+            ->exists();
 
-        if (!empty($item['items'])) {
-            $html .= '<ul class="sitemap-sublist">';
-            foreach ($item['items'] as $subItem) {
-                $html .= $this->generateSitemapItemHtml($subItem, $level + 1);
-            }
-            $html .= '</ul>';
+        $activeGroup = $request->query('group');
+
+        if ($activeGroup && ! in_array($activeGroup, ['__all', '__ungrouped'], true) && ! $groups->contains($activeGroup)) {
+            $activeGroup = null;
         }
 
-        $html .= '</li>';
-        return $html;
-    }
-
-    /**
-     * Строит древовидную структуру для карты сайта
-     */
-    private function buildSitemapStructure($pages): array
-    {
-        $link_list = [];
-
-        foreach ($pages as $page) {
-            $link_list[] = [
-                'page' => $page,
-                'url' => $page->url ?: '#',
-                'title' => $page->title_short ?: $page->title,
-                'items' => $this->buildChildrenStructure($page->children)
-            ];
+        if (! $activeGroup) {
+            $activeGroup = $groups->first() ?? ($hasUngrouped ? '__ungrouped' : '__all');
         }
 
-        return $link_list;
-    }
+        $documentsQuery = $page->documentsAll()
+            ->where('is_visible', true)
+            ->with('file');
 
-    /**
-     * Рекурсивно строит структуру дочерних страниц
-     */
-    private function buildChildrenStructure($children): array
-    {
-        $items = [];
-
-        foreach ($children as $child) {
-            // Загружаем дочерние страницы для текущего ребенка
-            $child->load(['children' => function($query) {
-                $query->where('page_status', 3) // Только опубликованные
-                      ->orderBy('title', 'asc');
-            }]);
-
-            $items[] = [
-                'page' => $child,
-                'url' => $child->url ?: '#',
-                'title' => $child->title_short ?: $child->title,
-                'items' => $this->buildChildrenStructure($child->children)
-            ];
+        if ($activeGroup === '__ungrouped') {
+            $documentsQuery->whereNull('group_title');
+        } elseif ($activeGroup !== '__all') {
+            $documentsQuery->where('group_title', $activeGroup);
         }
 
-        return $items;
+        $documents = $documentsQuery
+            ->orderByRaw('CASE WHEN document_date IS NULL THEN 1 ELSE 0 END')
+            ->orderByDesc('document_date')
+            ->orderBy('order')
+            ->paginate(50)
+            ->withQueryString()
+            ->through(function (\App\Models\Cms\CmsPageDocument $doc): array {
+                $filePath = $doc->file?->path;
+
+                return [
+                    'id' => $doc->id,
+                    'title' => $doc->title,
+                    'group_title' => $doc->group_title,
+                    'document_date' => $doc->document_date?->format('d.m.Y'),
+                    'file' => [
+                        'name' => $doc->file?->original_name,
+                        'url' => $filePath ? Storage::disk('public')->url($filePath) : null,
+                    ],
+                ];
+            });
+
+        return [
+            'document_groups' => $groups,
+            'has_ungrouped_documents' => $hasUngrouped,
+            'active_group' => $activeGroup,
+            'documents' => $documents,
+        ];
     }
 }

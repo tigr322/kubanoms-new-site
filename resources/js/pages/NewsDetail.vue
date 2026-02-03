@@ -13,6 +13,7 @@ type MenuItem = {
 defineProps<{
     page: {
         title: string;
+        url: string;
         content: string;
         meta_description?: string | null;
         meta_keywords?: string | null;
@@ -45,6 +46,9 @@ defineProps<{
         <Head :title="page.title" />
         <div class="content">
             <Breadcrumbs :items="[]" />
+            <div class="print">
+                <a :href="`/print${page.url}`" target="_blank" rel="noopener">Версия для печати</a>
+            </div>
             <h1>{{ page.title }}</h1>
             <p class="date" v-if="page.publication_date">{{ page.publication_date }}</p>
             <div v-html="page.content" />

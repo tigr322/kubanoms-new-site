@@ -14,6 +14,23 @@ class CmsMenuItem extends Model
 
     public $timestamps = false;
 
+    protected static function booted(): void
+    {
+        static::saving(function (self $item): void {
+            if (! $item->parent_id) {
+                return;
+            }
+
+            $parentMenuId = self::query()
+                ->whereKey($item->parent_id)
+                ->value('menu_id');
+
+            if ($parentMenuId) {
+                $item->menu_id = $parentMenuId;
+            }
+        });
+    }
+
     public function menu(): BelongsTo
     {
         return $this->belongsTo(CmsMenu::class, 'menu_id');
@@ -31,6 +48,7 @@ class CmsMenuItem extends Model
 
     public function children(): HasMany
     {
-        return $this->hasMany(self::class, 'parent_id');
+        return $this->hasMany(self::class, 'parent_id')
+            ->orderBy('sort_order');
     }
 }

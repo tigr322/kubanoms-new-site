@@ -39,85 +39,32 @@ defineProps<{
     >
         <Head :title="page.title" />
         <div class="content index">
-            <!-- Показываем карту сайта если она есть в настройках -->
-            <div v-if="(settings as any)?.sitemap" v-html="(settings as any)?.sitemap" class="sitemap-section" />
-
-            <!-- Показываем обычный контент если это не карта сайта -->
-            <template v-else>
-                <!-- Блок с контактами -->
-                <div v-if="contacts" class="contacts-section">
-                    <h2>Контакты</h2>
-                    <div class="contacts-grid">
-                        <div v-if="contacts.phone" class="contact-item">
-                            <strong>Телефон:</strong> {{ contacts.phone }}
-                        </div>
-                        <div v-if="contacts.email" class="contact-item">
-                            <strong>Email:</strong> {{ contacts.email }}
-                        </div>
-                        <div v-if="contacts.address" class="contact-item">
-                            <strong>Адрес:</strong> {{ contacts.address }}
-                        </div>
-                        <div v-if="contacts.work_time" class="contact-item">
-                            <strong>Время работы:</strong> {{ contacts.work_time }}
-                        </div>
+            <!-- Блок с контактами -->
+            <div v-if="contacts" class="contacts-section">
+                <h2>Контакты</h2>
+                <div class="contacts-grid">
+                    <div v-if="contacts.phone" class="contact-item">
+                        <strong>Телефон:</strong> {{ contacts.phone }}
+                    </div>
+                    <div v-if="contacts.email" class="contact-item">
+                        <strong>Email:</strong> {{ contacts.email }}
+                    </div>
+                    <div v-if="contacts.address" class="contact-item">
+                        <strong>Адрес:</strong> {{ contacts.address }}
+                    </div>
+                    <div v-if="contacts.work_time" class="contact-item">
+                        <strong>Время работы:</strong> {{ contacts.work_time }}
                     </div>
                 </div>
+            </div>
 
-                <TabsLatest :news="latest_news" :documents="latest_documents" />
-                <div v-if="(settings as any)?.map" v-html="(settings as any)?.map" />
-            </template>
+            <TabsLatest :news="latest_news" :documents="latest_documents" />
+            <div v-if="(settings as any)?.map" v-html="(settings as any)?.map" />
         </div>
     </PublicLayout>
 </template>
 
 <style>
-.sitemap-section {
-    margin: 20px 0;
-}
-
-.sitemap-section h2 {
-    color: #333;
-    margin-bottom: 20px;
-    font-size: 24px;
-}
-
-.sitemap-section ul {
-    list-style: none;
-    padding: 0;
-}
-
-.sitemap-section .sitemap-list {
-    margin-bottom: 20px;
-}
-
-.sitemap-section .sitemap-item {
-    margin-bottom: 10px;
-}
-
-.sitemap-section .sitemap-link {
-    color: #0066cc;
-    text-decoration: none;
-    font-weight: 500;
-}
-
-.sitemap-section .sitemap-link:hover {
-    text-decoration: underline;
-}
-
-.sitemap-section .sitemap-sublist {
-    margin-left: 30px;
-    margin-top: 8px;
-}
-
-.sitemap-section .sitemap-sublist .sitemap-item {
-    margin-bottom: 6px;
-}
-
-.sitemap-section .sitemap-sublist .sitemap-link {
-    font-weight: normal;
-    font-size: 0.95em;
-}
-
 /* Стили для контактов */
 .contacts-section {
     background: #f8f9fa;

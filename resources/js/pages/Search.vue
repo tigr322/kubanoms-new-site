@@ -13,7 +13,7 @@ type MenuItem = {
 const props = defineProps<{
     query: string;
     results: Array<{
-        id: number;
+        id: string;
         title: string;
         url: string;
         excerpt: string;

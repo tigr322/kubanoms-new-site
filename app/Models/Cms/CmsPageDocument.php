@@ -13,6 +13,8 @@ class CmsPageDocument extends Model
         'page_id',
         'file_id',
         'title',
+        'group_title',
+        'document_date',
         'order',
         'is_visible',
     ];
@@ -20,6 +22,7 @@ class CmsPageDocument extends Model
     protected $casts = [
         'is_visible' => 'boolean',
         'order' => 'integer',
+        'document_date' => 'date',
     ];
 
     public function page(): BelongsTo

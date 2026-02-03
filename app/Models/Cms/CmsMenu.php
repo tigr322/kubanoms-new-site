@@ -17,4 +17,11 @@ class CmsMenu extends Model
     {
         return $this->hasMany(CmsMenuItem::class, 'menu_id');
     }
+
+    public function rootItems(): HasMany
+    {
+        return $this->hasMany(CmsMenuItem::class, 'menu_id')
+            ->whereNull('parent_id')
+            ->orderBy('sort_order');
+    }
 }

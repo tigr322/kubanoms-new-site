@@ -27,10 +27,19 @@ class PageRepository
 
     public function latestByType(int $pageType, int $limit = 3): Collection
     {
+        $template = match ($pageType) {
+            2 => 'news',
+            3 => 'document',
+            default => null,
+        };
+
         return CmsPage::query()
             ->where('page_of_type', $pageType)
             ->where('page_status', 3)
-            ->where('template', 'news') // Добавляем фильтр по шаблону news
+            ->when(
+                $template,
+                fn ($query) => $query->where('template', $template),
+            )
             ->orderByRaw('CASE WHEN images IS NULL OR json_array_length(images) = 0 THEN 1 ELSE 0 END')
             ->orderByDesc('publication_date')
             ->limit($limit)

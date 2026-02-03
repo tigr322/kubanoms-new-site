@@ -22,12 +22,26 @@ const toggle = (id: number): void => {
         openItems.value = [...openItems.value, id];
     }
 };
+
+const handleItemClick = (event: MouseEvent, item: MenuItem): void => {
+    if (!item.children?.length) {
+        return;
+    }
+
+    // Match legacy behavior: parents with children expand instead of navigating.
+    event.preventDefault();
+    toggle(item.id);
+};
 </script>
 
 <template>
     <ul class="sidebar">
         <li v-for="item in props.items" :key="item.id" :class="{ active: openItems.includes(item.id) }">
-            <Link v-if="item.url" :href="item.url" @click="item.children?.length ? toggle(item.id) : undefined">
+            <Link
+                v-if="item.url"
+                :href="item.url"
+                @click="(event) => handleItemClick(event, item)"
+            >
                 {{ item.title }}
             </Link>
             <span v-else>{{ item.title }}</span>

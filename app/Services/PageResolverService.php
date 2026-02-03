@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Cms\CmsPage;
+use App\PageStatus;
 use App\Repositories\MenuRepository;
 use App\Repositories\PageRepository;
 use App\Repositories\SettingRepository;
@@ -27,7 +28,7 @@ class PageResolverService
                 'content' => $page->content,
                 'meta_description' => $page->meta_description,
                 'meta_keywords' => $page->meta_keywords,
-                'publication_date' => optional($page->publication_date)?->toDateString(),
+                'publication_date' => optional($page->publication_date)?->format('d.m.Y'),
                 'page_status' => $page->page_status,
                 'page_of_type' => $page->page_of_type,
                 'url' => $page->url,
@@ -68,10 +69,22 @@ class PageResolverService
     {
         $mapMenu = function (Collection $items) use (&$mapMenu): Collection {
             return $items->map(function ($item) use ($mapMenu) {
+                $url = null;
+
+                if ($item->page) {
+                    $status = $item->page->page_status;
+
+                    $isPublished = $status instanceof PageStatus
+                        ? $status === PageStatus::PUBLISHED
+                        : (int) $status === PageStatus::PUBLISHED->value;
+
+                    $url = $isPublished ? $item->page->url : null;
+                }
+
                 return [
                     'id' => $item->id,
                     'title' => $item->title,
-                    'url' => $item->page?->url ?? $item->url,
+                    'url' => $url ?? $item->url,
                     'children' => $mapMenu($item->children ?? collect()),
                 ];
             });

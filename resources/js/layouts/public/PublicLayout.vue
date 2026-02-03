@@ -186,6 +186,9 @@ watch(
                         <div class="developer">
                             <a href="#">Разработка сайта</a>: <a href="http://salich-dev.ru">Саленко А.С.</a>
                             <a href="#"> Безопасность и доработка</a>: <a href="https://tigran-dev.ru">Адамян Т.П.</a>
+                            <br />
+                            RSS-канал:
+                            <a href="/rss.xml" target="_blank" rel="noopener">http://www.kubanoms.ru/rss.xml</a>
                         </div>
                     </div>
                 </div>

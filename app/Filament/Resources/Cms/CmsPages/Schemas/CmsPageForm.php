@@ -2,13 +2,14 @@
 
 namespace App\Filament\Resources\Cms\CmsPages\Schemas;
 
-use App\PageStatus;
+use App\Models\Cms\CmsPage;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class CmsPageForm
@@ -25,7 +26,18 @@ class CmsPageForm
                 TextInput::make('meta_description'),
                 TextInput::make('meta_keywords'),
                 DateTimePicker::make('publication_date'),
-                Textarea::make('content')
+                RichEditor::make('content')
+                    ->label('Контент')
+                    ->fileAttachmentsDisk('public')
+                    ->fileAttachmentsDirectory('cms/page/attachments')
+                    ->fileAttachmentsVisibility('public')
+                    ->toolbarButtons([
+                        ['bold', 'italic', 'underline', 'strike', 'subscript', 'superscript', 'link'],
+                        ['h2', 'h3', 'alignStart', 'alignCenter', 'alignEnd'],
+                        ['blockquote', 'codeBlock', 'bulletList', 'orderedList'],
+                        ['table', 'attachFiles'],
+                        ['undo', 'redo'],
+                    ])
                     ->columnSpanFull(),
                 Select::make('page_status')
                     ->label('Статус страницы')
@@ -40,10 +52,23 @@ class CmsPageForm
                     ->options([
                         1 => 'Страница',
                         2 => 'Новость',
+                        3 => 'Документ',
                         7 => 'Карта сайта',
                     ])
                     ->required()
-                    ->live(),
+                    ->live()
+                    ->afterStateUpdated(function (Set $set, mixed $state): void {
+                        $template = match ((int) $state) {
+                            2 => 'news',
+                            3 => 'document',
+                            7 => 'sitemap',
+                            default => null,
+                        };
+
+                        if ($template) {
+                            $set('template', $template);
+                        }
+                    }),
                 FileUpload::make('images')
                     ->label('Фотографии')
                     ->disk('public')
@@ -61,7 +86,9 @@ class CmsPageForm
                 FileUpload::make('attachments')
                     ->label('Документы')
                     ->disk('public')
-                    ->directory('cms/news/attachments')
+                    ->directory(fn (Get $get): string => (int) $get('page_of_type') === 2
+                        ? 'cms/news/attachments'
+                        : 'cms/documents/attachments')
                     ->visibility('public')
                     ->multiple()
                     ->downloadable()
@@ -77,7 +104,7 @@ class CmsPageForm
                     ])
                     ->columnSpanFull()
                     ->helperText('Прикреплённые файлы отобразятся под текстом новости.')
-                    ->visible(fn (Get $get): bool => (int) $get('page_of_type') === 2),
+                    ->visible(fn (Get $get): bool => in_array((int) $get('page_of_type'), [2, 3], true)),
                 TextInput::make('update_user'),
                 DateTimePicker::make('create_date'),
                 TextInput::make('create_user'),
@@ -96,7 +123,35 @@ class CmsPageForm
                         'regex' => 'URL должен начинаться с символа /',
                     ]),
                 TextInput::make('path'),
-                TextInput::make('template'),
+                TextInput::make('template')
+                    ->label('Шаблон')
+                    ->datalist(function (): array {
+                        $knownTemplates = [
+                            'default',
+                            'home',
+                            'news',
+                            'document',
+                            'publication',
+                            'sitemap',
+                            'vr',
+                        ];
+
+                        $dbTemplates = CmsPage::query()
+                            ->select('template')
+                            ->whereNotNull('template')
+                            ->where('template', '!=', '')
+                            ->distinct()
+                            ->orderBy('template')
+                            ->pluck('template')
+                            ->all();
+
+                        return collect([...$knownTemplates, ...$dbTemplates])
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->all();
+                    })
+                    ->helperText('Подсказки: default, home, news, document, publication, sitemap, vr.'),
             ]);
     }
 }

@@ -4,14 +4,14 @@ namespace App\Models\Cms;
 
 use App\PageStatus;
 use App\PageType;
+use Carbon\Carbon;
 use Database\Factories\CmsPageFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class CmsPage extends Model
 {
@@ -41,7 +41,7 @@ class CmsPage extends Model
 
         // Автоматическая генерация URL при создании
         static::creating(function ($model) {
-            if (empty($model->url) && !empty($model->title)) {
+            if (empty($model->url) && ! empty($model->title)) {
                 $model->url = $model->generateUrlFromTitle();
             }
 
@@ -59,7 +59,7 @@ class CmsPage extends Model
 
         // Обновление URL при изменении заголовка (если URL не установлен вручную)
         static::updating(function ($model) {
-            if (empty($model->url) && !empty($model->title)) {
+            if (empty($model->url) && ! empty($model->title)) {
                 $model->url = $model->generateUrlFromTitle();
             }
 
@@ -77,7 +77,7 @@ class CmsPage extends Model
         $slug = Str::slug($this->title, '-', 'ru');
 
         // Определяем префикс в зависимости от шаблона
-        $prefix = match($this->template) {
+        $prefix = match ($this->template) {
             'news' => '/news/',
             'document' => '/documents/',
             'publication' => '/publications/',
@@ -87,7 +87,7 @@ class CmsPage extends Model
         // Добавляем расширение .html для страниц новостей
         $extension = ($this->template === 'news') ? '.html' : '';
 
-        return $prefix . $slug . $extension;
+        return $prefix.$slug.$extension;
     }
 
     /**
@@ -100,7 +100,7 @@ class CmsPage extends Model
         }
 
         // URL должен начинаться с /
-        if (!str_starts_with($this->url, '/')) {
+        if (! str_starts_with($this->url, '/')) {
             return false;
         }
 
@@ -126,6 +126,12 @@ class CmsPage extends Model
     {
         return $this->hasMany(CmsPageDocument::class, 'page_id')
             ->where('is_visible', true)
+            ->orderBy('order');
+    }
+
+    public function documentsAll(): HasMany
+    {
+        return $this->hasMany(CmsPageDocument::class, 'page_id')
             ->orderBy('order');
     }
 

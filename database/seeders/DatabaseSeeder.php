@@ -7,18 +7,65 @@ use App\Models\Cms\CmsMenuItem;
 use App\Models\Cms\CmsPage;
 use App\Models\Cms\CmsSetting;
 use App\Models\User;
+use App\PageStatus;
+use App\PageType;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
+    private const string SYSTEM_USER = 'system';
+
     public function run(): void
     {
+        Model::unguard();
+
+        $this->seedUsers();
+
+        $menus = $this->seedMenus();
+        $pagesByUrl = $this->seedPages();
+
+        $this->seedMenuTree(
+            menu: $menus['navbar'],
+            pagesByUrl: $pagesByUrl,
+            tree: $this->navbarMenuTree(),
+        );
+
+        $this->seedMenuTree(
+            menu: $menus['sidebar'],
+            pagesByUrl: $pagesByUrl,
+            tree: $this->sidebarMenuTree(),
+        );
+
+        $this->seedMenuTree(
+            menu: $menus['current_information'],
+            pagesByUrl: $pagesByUrl,
+            tree: $this->currentInformationMenuTree(),
+        );
+
+        $this->seedSettings();
+    }
+
+    private function seedUsers(): void
+    {
         User::updateOrCreate(
-            ['email' => 'admin@example.com'],
+            ['email' => 'admin@admin.com'],
             [
                 'name' => 'Admin User',
-                'password' => Hash::make('password123'),
+                'password' => Hash::make('YzoLPoW4t1sbTD'),
+                'role' => 'admin',
+            ],
+            ['email' => 'root@admin.com'],
+            [
+                'name' => 'Admin User',
+                'password' => Hash::make('cf1IOgW1QRPXKj'),
+                'role' => 'admin',
+            ],
+            ['email' => 'editor@admin.com'],
+            [
+                'name' => 'Admin User',
+                'password' => Hash::make('ekkqZxwbOe3cOR'),
                 'role' => 'admin',
             ],
         );
@@ -31,531 +78,708 @@ class DatabaseSeeder extends Seeder
                 'role' => 'editor',
             ],
         );
+    }
 
-        $navbar = CmsMenu::firstOrCreate(
-            ['name' => 'NAVBAR'],
-            [
-                'title' => 'Горизонтальное меню',
-                'max_depth' => 2,
-                'description' => null,
-            ]
-        );
+    /**
+     * @return array{navbar: CmsMenu, sidebar: CmsMenu, current_information: CmsMenu}
+     */
+    private function seedMenus(): array
+    {
+        return [
+            'navbar' => $this->upsertMenu(
+                name: 'NAVBAR',
+                title: 'Горизонтальное меню',
+                maxDepth: 2,
+                description: 'Основное меню в шапке сайта.',
+            ),
+            'sidebar' => $this->upsertMenu(
+                name: 'SIDEBAR',
+                title: 'Вертикальное меню',
+                maxDepth: 3,
+                description: 'Меню в левой колонке.',
+            ),
+            'current_information' => $this->upsertMenu(
+                name: 'CURRENT_INFORMATION',
+                title: 'Актуальная информация',
+                maxDepth: 1,
+                description: 'Блок ссылок справа (Актуальная информация).',
+            ),
+        ];
+    }
 
-        $sidebar = CmsMenu::firstOrCreate(
-            ['name' => 'SIDEBAR'],
-            [
-                'title' => 'Вертикальное меню',
-                'max_depth' => 3,
-                'description' => null,
-            ]
-        );
+    private function upsertMenu(string $name, string $title, int $maxDepth, ?string $description = null): CmsMenu
+    {
+        $menu = CmsMenu::query()->firstOrNew(['name' => $name]);
 
-        $currentInfo = CmsMenu::firstOrCreate(
-            ['name' => 'CURRENT_INFORMATION'],
-            [
-                'title' => 'Актуальная информация',
-                'max_depth' => 1,
-                'description' => null,
-            ]
-        );
+        $menu->fill([
+            'title' => $title,
+            'max_depth' => $maxDepth,
+            'description' => $description,
+            'update_date' => now(),
+            'update_user' => self::SYSTEM_USER,
+        ]);
 
-        // Главная страница
-        $home = CmsPage::firstOrCreate(
-            ['url' => '/'],
+        if (! $menu->exists) {
+            $menu->fill([
+                'create_date' => now(),
+                'create_user' => self::SYSTEM_USER,
+            ]);
+        }
+
+        $menu->save();
+
+        return $menu;
+    }
+
+    /**
+     * Создаем базовую структуру разделов сайта и подстраниц.
+     *
+     * Важно: URL в старом сайте часто лежали в корне (например, /polis.html),
+     * но логически относятся к разделу "Гражданам". Поэтому мы создаем вложенность
+     * через parent_id, даже если URL не содержит префикса раздела.
+     *
+     * @return array<string, CmsPage> pages indexed by url
+     */
+    private function seedPages(): array
+    {
+        $pagesByUrl = [];
+
+        foreach ($this->pageTree() as $node) {
+            $this->upsertPage($node, parent: null, pagesByUrl: $pagesByUrl);
+        }
+
+        return $pagesByUrl;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function pageTree(): array
+    {
+        return [
             [
-                'parent_id' => null,
-                'title' => 'Территориальный фонд ОМС Краснодарского края',
-                'title_short' => 'Главная',
-                'meta_description' => 'Главная страница',
-                'meta_keywords' => 'ОМС, Краснодар',
-                'publication_date' => now(),
-                'content' => '<p>Добро пожаловать в новый сайт ТФ ОМС Краснодарского края.</p>',
-                'page_status' => 3,
-                'page_of_type' => 2,
                 'url' => '/',
+                'title' => 'Территориальный фонд обязательного медицинского страхования Краснодарского края',
+                'title_short' => 'Главная',
+                'meta_description' => 'Официальный сайт ТФОМС Краснодарского края.',
+                'meta_keywords' => 'ТФОМС, ОМС, Краснодарский край',
                 'template' => 'home',
-                'images' => '["cms/news/images/image.png","cms/news/images/image.png"]',
-                'attachments' => '[]',
-            ]
-        );
+                'page_of_type' => PageType::PAGE->value,
+                'page_status' => PageStatus::PUBLISHED->value,
+                'content' => '<p>Добро пожаловать на официальный сайт ТФОМС Краснодарского края.</p>',
+            ],
 
-        // Гражданам
-        $citizens = CmsPage::firstOrCreate(
-            ['url' => '/grazhd.html'],
             [
-                'parent_id' => null,
+                'url' => '/grazhd.html',
                 'title' => 'Гражданам',
                 'title_short' => 'Гражданам',
-                'publication_date' => now(),
+                'template' => 'default',
+                'page_of_type' => PageType::PAGE->value,
+                'page_status' => PageStatus::PUBLISHED->value,
                 'content' => '<p>Информация для граждан.</p>',
-                'page_status' => 3,
-                'page_of_type' => 1,
-                'url' => '/grazhd.html',
-                'template' => 'default',
-            ]
-        );
+                'children' => [
+                    [
+                        'url' => '/polis.html',
+                        'title' => 'Получение полиса ОМС',
+                        'title_short' => 'Полис ОМС',
+                        'template' => 'default',
+                        'page_of_type' => PageType::PAGE->value,
+                        'page_status' => PageStatus::PUBLISHED->value,
+                        'content' => '<p>Как получить полис ОМС.</p>',
+                    ],
+                    [
+                        'url' => '/choose-mo.html',
+                        'title' => 'Выбор медицинской организации',
+                        'title_short' => 'Выбор МО',
+                        'template' => 'default',
+                        'page_of_type' => PageType::PAGE->value,
+                        'page_status' => PageStatus::PUBLISHED->value,
+                        'content' => '<p>Как выбрать медицинскую организацию.</p>',
+                    ],
+                    [
+                        'url' => '/faq',
+                        'title' => 'Вопросы и ответы',
+                        'title_short' => 'FAQ',
+                        'template' => 'default',
+                        'page_of_type' => PageType::PAGE->value,
+                        'page_status' => PageStatus::PUBLISHED->value,
+                        'content' => '<p>Раздел вопросов и ответов.</p>',
+                    ],
+                ],
+            ],
 
-        // Пресс-центр
-        $press = CmsPage::firstOrCreate(
-            ['url' => '/press/'],
             [
-                'parent_id' => null,
-                'title' => 'Пресс-центр',
-                'title_short' => 'Пресс-центр',
-                'publication_date' => now(),
-                'content' => '<p>Новости и публикации пресс-центра.</p>',
-                'page_status' => 3,
-                'page_of_type' => 1,
-                'url' => '/press/',
-                'template' => 'default',
-            ]
-        );
-
-        // Демонстрационная новость
-        $demoNews = CmsPage::firstOrCreate(
-            ['url' => '/news/demo-news.html'],
-            [
-                'parent_id' => null,
-                'title' => 'Демонстрационная новость',
-                'title_short' => 'Демо новость',
-                'publication_date' => now(),
-                'content' => '<p>Это пример новости для проверки верстки.</p>',
-                'page_status' => 3,
-                'page_of_type' => 2,
-                'url' => '/news/demo-news.html',
-                'template' => 'news',
-                'path' => null,
-            ]
-        );
-
-        // Демонстрационный документ
-        $demoDoc = CmsPage::firstOrCreate(
-            ['url' => '/documents/demo-document.html'],
-            [
-                'parent_id' => null,
-                'title' => 'Демонстрационный документ',
-                'title_short' => 'Документ',
-                'publication_date' => now(),
-                'content' => '<p>Пример документа с возможностью скачивания.</p>',
-                'page_status' => 3,
-                'page_of_type' => 3,
-                'url' => '/documents/demo-document.html',
-                'template' => 'document',
-            ]
-        );
-
-        // Медицинские организации
-        $mo = CmsPage::firstOrCreate(
-            ['url' => '/mo.html'],
-            [
-                'parent_id' => null,
-                'title' => 'Медицинские организации',
-                'title_short' => 'МО',
-                'publication_date' => now(),
-                'content' => '<p>Раздел для медицинских организаций.</p>',
-                'page_status' => 3,
-                'page_of_type' => 1,
                 'url' => '/mo.html',
+                'title' => 'Медицинским организациям',
+                'title_short' => 'МО',
                 'template' => 'default',
-            ]
-        );
+                'page_of_type' => PageType::PAGE->value,
+                'page_status' => PageStatus::PUBLISHED->value,
+                'content' => '<p>Раздел для медицинских организаций.</p>',
+                'children' => [
+                    [
+                        // пример старого URL
+                        'url' => '/uchr_oms.html',
+                        'title' => 'Реестр МО',
+                        'title_short' => 'Реестр МО',
+                        'template' => 'document',
+                        'page_of_type' => PageType::DOCUMENT->value,
+                        'page_status' => PageStatus::PUBLISHED->value,
+                        'content' => '<p>Загрузите документы реестра в админке: Контент → Страницы → Документы.</p>',
+                    ],
+                    [
+                        // пример таблицы документов как на старом сайте
+                        'url' => '/zakon9.html',
+                        'title' => 'Нормативные документы (таблица)',
+                        'title_short' => 'Нормативные',
+                        'template' => 'document',
+                        'page_of_type' => PageType::DOCUMENT->value,
+                        'page_status' => PageStatus::PUBLISHED->value,
+                        'content' => '<p>Страница для большой таблицы документов (10–100000 файлов).</p>',
+                    ],
+                ],
+            ],
 
-        // Страховые медицинские организации
-        $smo = CmsPage::firstOrCreate(
-            ['url' => '/smedorg.html'],
             [
-                'parent_id' => null,
-                'title' => 'Страховые медицинские организации',
-                'title_short' => 'СМО',
-                'publication_date' => now(),
-                'content' => '<p>Информация для СМО.</p>',
-                'page_status' => 3,
-                'page_of_type' => 1,
                 'url' => '/smedorg.html',
+                'title' => 'Страховым медицинским организациям',
+                'title_short' => 'СМО',
                 'template' => 'default',
-            ]
-        );
+                'page_of_type' => PageType::PAGE->value,
+                'page_status' => PageStatus::PUBLISHED->value,
+                'content' => '<p>Информация для страховых медицинских организаций.</p>',
+                'children' => [
+                    [
+                        'url' => '/reestr-smo.html',
+                        'title' => 'Реестр СМО',
+                        'title_short' => 'Реестр СМО',
+                        'template' => 'document',
+                        'page_of_type' => PageType::DOCUMENT->value,
+                        'page_status' => PageStatus::PUBLISHED->value,
+                        'content' => '<p>Загрузите документы реестра СМО в админке.</p>',
+                    ],
+                ],
+            ],
 
-        // ТФОМС
-        $tfoms = CmsPage::firstOrCreate(
-            ['url' => '/tfoms.html'],
             [
-                'parent_id' => null,
+                'url' => '/tfoms.html',
                 'title' => 'ТФОМС',
                 'title_short' => 'ТФОМС',
-                'publication_date' => now(),
-                'content' => '<p>Сведения о территориальном фонде ОМС.</p>',
-                'page_status' => 3,
-                'page_of_type' => 1,
-                'url' => '/tfoms.html',
                 'template' => 'default',
-            ]
-        );
+                'page_of_type' => PageType::PAGE->value,
+                'page_status' => PageStatus::PUBLISHED->value,
+                'content' => '<p>Сведения о территориальном фонде ОМС.</p>',
+                'children' => [
+                    [
+                        'url' => '/contacts.html',
+                        'title' => 'Контакты',
+                        'title_short' => 'Контакты',
+                        'template' => 'default',
+                        'page_of_type' => PageType::PAGE->value,
+                        'page_status' => PageStatus::PUBLISHED->value,
+                        'content' => '<p>Контактная информация.</p>',
+                    ],
+                    [
+                        'url' => '/anti-corruption.html',
+                        'title' => 'Противодействие коррупции',
+                        'title_short' => 'Антикоррупция',
+                        'template' => 'default',
+                        'page_of_type' => PageType::PAGE->value,
+                        'page_status' => PageStatus::PUBLISHED->value,
+                        'content' => '<p>Информация о противодействии коррупции.</p>',
+                    ],
+                ],
+            ],
 
-        // КТФОМС
-        $ktfoms = CmsPage::firstOrCreate(
-            ['url' => '/ktfoms.html'],
             [
-                'parent_id' => null,
+                'url' => '/ktfoms.html',
                 'title' => 'КТФОМС',
                 'title_short' => 'КТФОМС',
-                'publication_date' => now(),
-                'content' => '<p>Краевой ТФОМС информация.</p>',
-                'page_status' => 3,
-                'page_of_type' => 1,
-                'url' => '/ktfoms.html',
                 'template' => 'default',
-            ]
-        );
+                'page_of_type' => PageType::PAGE->value,
+                'page_status' => PageStatus::PUBLISHED->value,
+                'content' => '<p>Краевой ТФОМС.</p>',
+            ],
 
-        // Диспансеризация
-        $dispans = CmsPage::firstOrCreate(
-            ['url' => '/dispans/'],
             [
-                'parent_id' => null,
+                'url' => '/dispans',
                 'title' => 'Диспансеризация',
                 'title_short' => 'Диспансеризация',
-                'publication_date' => now(),
-                'content' => '<p>Программа диспансеризации граждан.</p>',
-                'page_status' => 3,
-                'page_of_type' => 1,
-                'url' => '/dispans/',
                 'template' => 'default',
-            ]
-        );
+                'page_of_type' => PageType::PAGE->value,
+                'page_status' => PageStatus::PUBLISHED->value,
+                'content' => '<p>Информация о диспансеризации.</p>',
+                'children' => [
+                    [
+                        'url' => '/dispans/info.html',
+                        'title' => 'Что такое диспансеризация',
+                        'title_short' => 'Что это',
+                        'template' => 'default',
+                        'page_of_type' => PageType::PAGE->value,
+                        'page_status' => PageStatus::PUBLISHED->value,
+                        'content' => '<p>Описание программы диспансеризации.</p>',
+                    ],
+                    [
+                        'url' => '/dispans/gde-proyti.html',
+                        'title' => 'Где пройти диспансеризацию',
+                        'title_short' => 'Где пройти',
+                        'template' => 'default',
+                        'page_of_type' => PageType::PAGE->value,
+                        'page_status' => PageStatus::PUBLISHED->value,
+                        'content' => '<p>Информация о местах прохождения.</p>',
+                    ],
+                ],
+            ],
 
-        // Виртуальная приёмная
-        $virtualReception = CmsPage::firstOrCreate(
-            ['url' => '/virtual-reception/'],
             [
-                'parent_id' => null,
-                'title' => 'Виртуальная приёмная',
-                'title_short' => 'Виртуальная приёмная',
-                'publication_date' => now(),
-                'content' => '<p>Онлайн форма обращения.</p>',
-                'page_status' => 3,
-                'page_of_type' => 1,
-                'url' => '/virtual-reception/',
-                'template' => 'vr',
-            ]
-        );
+                'url' => '/press',
+                'title' => 'Пресс-центр',
+                'title_short' => 'Пресс-центр',
+                'template' => 'default',
+                'page_of_type' => PageType::PAGE->value,
+                'page_status' => PageStatus::PUBLISHED->value,
+                'content' => '<p>Новости, документы и публикации.</p>',
+                'children' => [
+                    [
+                        'url' => '/news',
+                        'title' => 'Новости',
+                        'title_short' => 'Новости',
+                        'template' => 'default',
+                        'page_of_type' => PageType::PAGE->value,
+                        'page_status' => PageStatus::PUBLISHED->value,
+                        'content' => '<p>Раздел новостей. Новости создавайте как тип "Новость" и указывайте родителем эту страницу.</p>',
+                        'children' => [
+                            [
+                                'url' => '/news/demo-news.html',
+                                'title' => 'Демонстрационная новость',
+                                'title_short' => 'Демо новость',
+                                'template' => 'news',
+                                'page_of_type' => PageType::NEWS->value,
+                                'page_status' => PageStatus::PUBLISHED->value,
+                                'content' => '<p>Это пример новости для проверки верстки.</p>',
+                                'images' => [],
+                                'attachments' => [],
+                            ],
+                        ],
+                    ],
+                    [
+                        'url' => '/documents',
+                        'title' => 'Документы',
+                        'title_short' => 'Документы',
+                        'template' => 'default',
+                        'page_of_type' => PageType::PAGE->value,
+                        'page_status' => PageStatus::PUBLISHED->value,
+                        'content' => '<p>Раздел документов. Документы создавайте как тип "Документ" и указывайте родителем эту страницу.</p>',
+                        'children' => [
+                            [
+                                'url' => '/documents/demo-document.html',
+                                'title' => 'Демонстрационный документ',
+                                'title_short' => 'Документ',
+                                'template' => 'document',
+                                'page_of_type' => PageType::DOCUMENT->value,
+                                'page_status' => PageStatus::PUBLISHED->value,
+                                'content' => '<p>Пример страницы документа с таблицей загруженных файлов.</p>',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    }
 
-        // Филиалы
-        $branches = CmsPage::firstOrCreate(
-            ['url' => '/branches.html'],
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  array<string, CmsPage>  $pagesByUrl
+     */
+    private function upsertPage(array $data, ?CmsPage $parent, array &$pagesByUrl): CmsPage
+    {
+        /** @var string $url */
+        $url = $this->normalizePageUrl((string) $data['url']);
+
+        $candidates = [$url];
+
+        if ($url !== '/') {
+            $candidates[] = $url.'/';
+        }
+
+        $page = CmsPage::query()
+            ->whereIn('url', $candidates)
+            ->orderBy('id')
+            ->first() ?? CmsPage::query()->make();
+
+        $page->url = $url;
+        $page->parent_id = $parent?->id;
+        $page->title = (string) ($data['title'] ?? '');
+        $page->title_short = $data['title_short'] ?? null;
+        $page->meta_description = $data['meta_description'] ?? null;
+        $page->meta_keywords = $data['meta_keywords'] ?? null;
+        $page->template = $data['template'] ?? 'default';
+        $page->page_of_type = (int) ($data['page_of_type'] ?? PageType::PAGE->value);
+        $page->page_status = (int) ($data['page_status'] ?? PageStatus::PUBLISHED->value);
+
+        if (array_key_exists('images', $data) && is_array($data['images'])) {
+            $page->images = $data['images'];
+        }
+
+        if (array_key_exists('attachments', $data) && is_array($data['attachments'])) {
+            $page->attachments = $data['attachments'];
+        }
+
+        $content = $data['content'] ?? null;
+        if (is_string($content) && blank($page->content)) {
+            $page->content = $content;
+        }
+
+        if (! $page->exists) {
+            $page->create_date = now();
+            $page->create_user = self::SYSTEM_USER;
+        }
+
+        $page->save();
+
+        $pagesByUrl[$url] = $page;
+
+        /** @var array<int, array<string, mixed>> $children */
+        $children = $data['children'] ?? [];
+
+        foreach ($children as $childNode) {
+            $this->upsertPage($childNode, parent: $page, pagesByUrl: $pagesByUrl);
+        }
+
+        return $page;
+    }
+
+    private function normalizePageUrl(string $url): string
+    {
+        $normalized = '/'.ltrim(trim($url), '/');
+
+        if ($normalized === '/') {
+            return '/';
+        }
+
+        return rtrim($normalized, '/');
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function navbarMenuTree(): array
+    {
+        return [
             [
-                'parent_id' => null,
+                'title' => 'Главная',
+                'page_url' => '/',
+            ],
+            [
+                'title' => 'Гражданам',
+                'page_url' => '/grazhd.html',
+                'children' => [
+                    ['title' => 'Получение полиса ОМС', 'page_url' => '/polis.html'],
+                    ['title' => 'Выбор медицинской организации', 'page_url' => '/choose-mo.html'],
+                    ['title' => 'Вопросы и ответы', 'page_url' => '/faq'],
+                ],
+            ],
+            [
+                'title' => 'Медицинским организациям',
+                'page_url' => '/mo.html',
+                'children' => [
+                    ['title' => 'Реестр МО', 'page_url' => '/uchr_oms.html'],
+                    ['title' => 'Нормативные документы', 'page_url' => '/zakon9.html'],
+                ],
+            ],
+            [
+                'title' => 'СМО',
+                'page_url' => '/smedorg.html',
+                'children' => [
+                    ['title' => 'Реестр СМО', 'page_url' => '/reestr-smo.html'],
+                ],
+            ],
+            [
+                'title' => 'ТФОМС',
+                'page_url' => '/tfoms.html',
+                'children' => [
+                    ['title' => 'Контакты', 'page_url' => '/contacts.html'],
+                    ['title' => 'Противодействие коррупции', 'page_url' => '/anti-corruption.html'],
+                ],
+            ],
+            [
+                'title' => 'Пресс-центр',
+                'page_url' => '/press',
+                'children' => [
+                    ['title' => 'Новости', 'page_url' => '/news'],
+                    ['title' => 'Документы', 'page_url' => '/documents'],
+                    ['title' => 'RSS-канал', 'url' => '/rss.xml'],
+                ],
+            ],
+            [
                 'title' => 'Филиалы',
-                'title_short' => 'Филиалы',
-                'publication_date' => now(),
-                'content' => '<p>Информация о филиалах ТФОМС.</p>',
-                'page_status' => 3,
-                'page_of_type' => 1,
-                'url' => '/branches.html',
-                'template' => 'default',
-            ]
-        );
-
-        // Получение полиса ОМС
-        $polis = CmsPage::firstOrCreate(
-            ['url' => '/polis.html'],
+                'url' => '/branches',
+            ],
             [
-                'parent_id' => null,
-                'title' => 'Получение полиса ОМС',
-                'title_short' => 'Получение полиса ОМС',
-                'publication_date' => now(),
-                'content' => '<p>Как получить полис ОМС.</p>',
-                'page_status' => 3,
-                'page_of_type' => 1,
-                'url' => '/polis.html',
-                'template' => 'default',
-            ]
-        );
-
-        // Выбор медицинской организации
-        $chooseMo = CmsPage::firstOrCreate(
-            ['url' => '/choose-mo.html'],
-            [
-                'parent_id' => null,
-                'title' => 'Выбор медицинской организации',
-                'title_short' => 'Выбор МО',
-                'publication_date' => now(),
-                'content' => '<p>Как выбрать медицинскую организацию.</p>',
-                'page_status' => 3,
-                'page_of_type' => 1,
-                'url' => '/choose-mo.html',
-                'template' => 'default',
-            ]
-        );
-
-        // Карта сайта
-        $sitemap = CmsPage::firstOrCreate(
-            ['url' => '/sitemap.html'],
-            [
-                'parent_id' => null,
-                'title' => 'Карта сайта',
-                'title_short' => 'Карта сайта',
-                'publication_date' => now(),
-                'content' => '<p>Карта сайта.</p>',
-                'page_status' => 3,
-                'page_of_type' => 7,
-                'url' => '/sitemap.html',
-                'template' => 'default',
-            ]
-        );
-
-        // Навигационные элементы
-        $this->createMenuItems($navbar, $sidebar, $home, $press, $virtualReception, $citizens, $mo, $smo, $tfoms, $ktfoms, $dispans, $branches, $polis, $chooseMo);
-
-        // Настройки CMS
-        $this->createCmsSettings();
+                'title' => 'Виртуальная приёмная',
+                'url' => '/virtual-reception',
+            ],
+        ];
     }
 
-    private function createMenuItems($navbar, $sidebar, $home, $press, $virtualReception, $citizens, $mo, $smo, $tfoms, $ktfoms, $dispans, $branches, $polis, $chooseMo): void
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function sidebarMenuTree(): array
     {
-        // Навигационная панель
-        CmsMenuItem::firstOrCreate(
-            ['menu_id' => $navbar->id, 'title' => 'Главная'],
+        return [
             [
-                'page_id' => $home->id,
-                'sort_order' => 1,
-                'visible' => true,
-            ]
-        );
-
-        CmsMenuItem::firstOrCreate(
-            ['menu_id' => $navbar->id, 'title' => 'Пресс-центр'],
+                'title' => 'Гражданам',
+                'page_url' => '/grazhd.html',
+                'children' => [
+                    ['title' => 'Получение полиса ОМС', 'page_url' => '/polis.html'],
+                    ['title' => 'Выбор медицинской организации', 'page_url' => '/choose-mo.html'],
+                    ['title' => 'Вопросы и ответы', 'page_url' => '/faq'],
+                ],
+            ],
             [
-                'page_id' => $press->id,
-                'sort_order' => 2,
-                'visible' => true,
-            ]
-        );
-
-        CmsMenuItem::firstOrCreate(
-            ['menu_id' => $navbar->id, 'title' => 'Виртуальная приёмная'],
+                'title' => 'Медицинским организациям',
+                'page_url' => '/mo.html',
+                'children' => [
+                    ['title' => 'Реестр МО', 'page_url' => '/uchr_oms.html'],
+                    ['title' => 'Нормативные документы', 'page_url' => '/zakon9.html'],
+                ],
+            ],
             [
-                'page_id' => $virtualReception->id,
-                'sort_order' => 3,
-                'visible' => true,
-            ]
-        );
-
-        // Боковая панель
-        CmsMenuItem::firstOrCreate(
-            ['menu_id' => $sidebar->id, 'title' => 'Гражданам'],
+                'title' => 'Страховым медицинским организациям',
+                'page_url' => '/smedorg.html',
+                'children' => [
+                    ['title' => 'Реестр СМО', 'page_url' => '/reestr-smo.html'],
+                ],
+            ],
             [
-                'page_id' => $citizens->id,
-                'sort_order' => 1,
-                'visible' => true,
-            ]
-        );
-
-        CmsMenuItem::firstOrCreate(
-            ['menu_id' => $sidebar->id, 'title' => 'Медицинским организациям'],
+                'title' => 'ТФОМС',
+                'page_url' => '/tfoms.html',
+                'children' => [
+                    ['title' => 'Контакты', 'page_url' => '/contacts.html'],
+                    ['title' => 'Противодействие коррупции', 'page_url' => '/anti-corruption.html'],
+                ],
+            ],
             [
-                'page_id' => $mo->id,
-                'sort_order' => 2,
-                'visible' => true,
-            ]
-        );
-
-        CmsMenuItem::firstOrCreate(
-            ['menu_id' => $sidebar->id, 'title' => 'Страховым медицинским организациям'],
+                'title' => 'КТФОМС',
+                'page_url' => '/ktfoms.html',
+            ],
             [
-                'page_id' => $smo->id,
-                'sort_order' => 3,
-                'visible' => true,
-            ]
-        );
-
-        CmsMenuItem::firstOrCreate(
-            ['menu_id' => $sidebar->id, 'title' => 'ТФОМС'],
+                'title' => 'Диспансеризация',
+                'page_url' => '/dispans',
+                'children' => [
+                    ['title' => 'Что такое диспансеризация', 'page_url' => '/dispans/info.html'],
+                    ['title' => 'Где пройти', 'page_url' => '/dispans/gde-proyti.html'],
+                ],
+            ],
             [
-                'page_id' => $tfoms->id,
-                'sort_order' => 4,
-                'visible' => true,
-            ]
-        );
-
-        CmsMenuItem::firstOrCreate(
-            ['menu_id' => $sidebar->id, 'title' => 'КТФОМС'],
+                'title' => 'Пресс-центр',
+                'page_url' => '/press',
+                'children' => [
+                    ['title' => 'Новости', 'page_url' => '/news'],
+                    ['title' => 'Документы', 'page_url' => '/documents'],
+                ],
+            ],
             [
-                'page_id' => $ktfoms->id,
-                'sort_order' => 5,
-                'visible' => true,
-            ]
-        );
-
-        CmsMenuItem::firstOrCreate(
-            ['menu_id' => $sidebar->id, 'title' => 'Диспансеризация'],
+                'title' => 'Филиалы',
+                'url' => '/branches',
+            ],
             [
-                'page_id' => $dispans->id,
-                'sort_order' => 6,
-                'visible' => true,
-            ]
-        );
-
-        CmsMenuItem::firstOrCreate(
-            ['menu_id' => $sidebar->id, 'title' => 'Виртуальная приёмная'],
-            [
-                'page_id' => $virtualReception->id,
-                'sort_order' => 7,
-                'visible' => true,
-            ]
-        );
-
-        CmsMenuItem::firstOrCreate(
-            ['menu_id' => $sidebar->id, 'title' => 'Филиалы'],
-            [
-                'page_id' => $branches->id,
-                'sort_order' => 8,
-                'visible' => true,
-            ]
-        );
-
-        CmsMenuItem::firstOrCreate(
-            ['menu_id' => $sidebar->id, 'title' => 'Получение полиса ОМС'],
-            [
-                'page_id' => $polis->id,
-                'sort_order' => 9,
-                'visible' => true,
-            ]
-        );
-
-        CmsMenuItem::firstOrCreate(
-            ['menu_id' => $sidebar->id, 'title' => 'Выбор медицинской организации'],
-            [
-                'page_id' => $chooseMo->id,
-                'sort_order' => 10,
-                'visible' => true,
-            ]
-        );
+                'title' => 'Виртуальная приёмная',
+                'url' => '/virtual-reception',
+            ],
+        ];
     }
 
-    private function createCmsSettings(): void
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function currentInformationMenuTree(): array
     {
-        // Баннеры
-        CmsSetting::firstOrCreate(
-            ['name' => 'LEFT_SIDEBAR_BANNERS'],
+        return [
             [
+                'title' => 'Новости',
+                'page_url' => '/news',
+            ],
+            [
+                'title' => 'Документы',
+                'page_url' => '/documents',
+            ],
+            [
+                'title' => 'Поиск по сайту',
+                'url' => '/search',
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $tree
+     * @param  array<string, CmsPage>  $pagesByUrl
+     */
+    private function seedMenuTree(CmsMenu $menu, array $pagesByUrl, array $tree): void
+    {
+        // For a clean, predictable structure (no duplicates / wrong nesting),
+        // we recreate menu items for seeded menus.
+        CmsMenuItem::query()->where('menu_id', $menu->id)->delete();
+
+        $sortOrder = 1;
+
+        foreach ($tree as $node) {
+            $this->upsertMenuItem($menu, $pagesByUrl, $node, sortOrder: $sortOrder, parent: null);
+            $sortOrder++;
+        }
+    }
+
+    /**
+     * @param  array<string, CmsPage>  $pagesByUrl
+     * @param  array<string, mixed>  $node
+     */
+    private function upsertMenuItem(CmsMenu $menu, array $pagesByUrl, array $node, int $sortOrder, ?CmsMenuItem $parent): CmsMenuItem
+    {
+        $title = (string) ($node['title'] ?? '');
+
+        $pageId = null;
+
+        if (isset($node['page_url'])) {
+            $pageUrl = $this->normalizePageUrl((string) $node['page_url']);
+            $pageId = $pagesByUrl[$pageUrl]->id ?? null;
+        }
+
+        $url = $node['url'] ?? null;
+        $visible = array_key_exists('visible', $node) ? (bool) $node['visible'] : true;
+
+        $item = CmsMenuItem::query()->firstOrNew([
+            'menu_id' => $menu->id,
+            'parent_id' => $parent?->id,
+            'title' => $title,
+        ]);
+
+        $item->fill([
+            'menu_id' => $menu->id,
+            'parent_id' => $parent?->id,
+            'title' => $title,
+            'page_id' => $pageId,
+            'url' => is_string($url) ? $url : null,
+            'sort_order' => $sortOrder,
+            'visible' => $visible,
+            'update_date' => now(),
+            'update_user' => self::SYSTEM_USER,
+        ]);
+
+        if (! $item->exists) {
+            $item->fill([
+                'create_date' => now(),
+                'create_user' => self::SYSTEM_USER,
+            ]);
+        }
+
+        $item->save();
+
+        /** @var array<int, array<string, mixed>> $children */
+        $children = $node['children'] ?? [];
+
+        $childSortOrder = 1;
+
+        foreach ($children as $childNode) {
+            $this->upsertMenuItem($menu, $pagesByUrl, $childNode, sortOrder: $childSortOrder, parent: $item);
+            $childSortOrder++;
+        }
+
+        return $item;
+    }
+
+    private function seedSettings(): void
+    {
+        $settings = [
+            [
+                'name' => 'LEFT_SIDEBAR_BANNERS',
                 'description' => 'Баннеры в левом сайдбаре',
                 'content' => '<a href="#" target="_blank" rel="noopener"><img src="/storage/cms/banners/image.png" alt="Баннер" /></a>',
                 'visibility' => true,
-            ]
-        );
-
-        CmsSetting::firstOrCreate(
-            ['name' => 'RIGHT_SIDEBAR_BANNERS'],
+            ],
             [
+                'name' => 'RIGHT_SIDEBAR_BANNERS',
                 'description' => 'Баннеры в правом сайдбаре',
                 'content' => '<img src="/storage/cms/banners/image.png" alt="Баннер" />',
                 'visibility' => true,
-            ]
-        );
-
-        CmsSetting::firstOrCreate(
-            ['name' => 'BOTTOM_BANNERS'],
+            ],
             [
+                'name' => 'BOTTOM_BANNERS',
                 'description' => 'Баннеры внизу страницы',
                 'content' => '<img src="/storage/cms/banners/image.png" alt="Баннер" />',
                 'visibility' => true,
-            ]
-        );
-
-        // Меню
-        CmsSetting::firstOrCreate(
-            ['name' => 'RIGHT_SIDEBAR_MENU'],
+            ],
             [
+                'name' => 'RIGHT_SIDEBAR_MENU',
                 'description' => 'Меню в правом сайдбаре',
-                'content' => '<div class="content actual"><h4>Актуально</h4><ul><li><a href="#">Режим работы</a></li><li><a href="#">Контакты</a></li></ul></div>',
+                'content' => '<div class="content actual"><h4>Актуально</h4><ul><li><a href="/branches">Филиалы</a></li><li><a href="/contacts.html">Контакты</a></li></ul></div>',
                 'visibility' => true,
-            ]
-        );
-
-        // MAP с контактами
-        CmsSetting::firstOrCreate(
-            ['name' => 'MAP'],
+            ],
             [
-                'description' => 'Карта сайта / блок на главной',
-                'content' => '<div class="contacts-section" style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px; margin: 20px 0;"><h2 style="color: #333; margin-bottom: 20px; font-size: 24px; border-bottom: 2px solid #007bff; padding-bottom: 10px;">Контакты</h2><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;"><div style="padding: 10px; background: white; border-radius: 6px; border-left: 4px solid #007bff;"><strong style="color: #007bff; display: block; margin-bottom: 5px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Телефон</strong>+7 (861) 222-22-22</div><div style="padding: 10px; background: white; border-radius: 6px; border-left: 4px solid #007bff;"><strong style="color: #007bff; display: block; margin-bottom: 5px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Email</strong>info@tfoms.ru</div><div style="padding: 10px; background: white; border-radius: 6px; border-left: 4px solid #007bff;"><strong style="color: #007bff; display: block; margin-bottom: 5px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Адрес</strong>350000, г. Краснодар, ул. Красная, 1</div><div style="padding: 10px; background: white; border-radius: 6px; border-left: 4px solid #007bff;"><strong style="color: #007bff; display: block; margin-bottom: 5px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Время работы</strong>Пн-Пт: 9:00-18:00, Сб: 9:00-13:00</div></div></div>',
+                'name' => 'MAP',
+                'description' => 'HTML-блок на главной',
+                'content' => '<p>Здесь может быть карта/контакты/баннеры.</p>',
                 'visibility' => true,
-            ]
-        );
-
-        // Внешние ссылки
-        CmsSetting::firstOrCreate(
-            ['name' => 'EXTERNAL_LINKS'],
+            ],
             [
+                'name' => 'EXTERNAL_LINKS',
                 'description' => 'Внешние ссылки',
                 'content' => '<ul><li><a href="#"><img src="/legacy/image/healthy_russia.gif" alt="Здоровая Россия" /></a></li></ul>',
                 'visibility' => true,
-            ]
-        );
-
-        // Колонки
-        CmsSetting::firstOrCreate(
-            ['name' => 'LEFT_COLUMN'],
+            ],
             [
-                'description' => 'Левая колонка',
-                'content' => '<h4>Контакты</h4><p>350000, г. Краснодар, ул. Красная, 1</p><p>Тел: +7 (861) 222-22-22</p>',
+                'name' => 'LEFT_COLUMN',
+                'description' => 'Левая колонка футера',
+                'content' => '<h4>Контакты</h4><p>350020, г. Краснодар, ул. Красная, 178</p><p>Контакт-центр: 8-800-200-60-50</p>',
                 'visibility' => true,
-            ]
-        );
-
-        CmsSetting::firstOrCreate(
-            ['name' => 'CENTER_COLUMN'],
+            ],
             [
-                'description' => 'Центральная колонка',
-                'content' => '<h4>Разделы сайта</h4><ul><li><a href="/">Главная</a></li><li><a href="/press/">Пресс-центр</a></li></ul>',
+                'name' => 'CENTER_COLUMN',
+                'description' => 'Центральная колонка футера',
+                'content' => '<h4>Разделы сайта</h4><ul><li><a href="/grazhd.html">Гражданам</a></li><li><a href="/mo.html">МО</a></li><li><a href="/press/">Пресс-центр</a></li></ul>',
                 'visibility' => true,
-            ]
-        );
-
-        CmsSetting::firstOrCreate(
-            ['name' => 'RIGHT_COLUMN'],
+            ],
             [
-                'description' => 'Правая колонка',
-                'content' => '<h4>Дополнительно</h4><p>Информация будет добавлена позднее.</p>',
+                'name' => 'RIGHT_COLUMN',
+                'description' => 'Правая колонка футера',
+                'content' => '<h4>Дополнительно</h4><p>RSS: <a href="/rss.xml" target="_blank" rel="noopener">/rss.xml</a></p>',
                 'visibility' => true,
-            ]
-        );
-
-        // Контакты
-        CmsSetting::firstOrCreate(
-            ['name' => 'contact_phone'],
+            ],
             [
+                'name' => 'contact_phone',
                 'description' => 'Контактный телефон',
-                'content' => '+7 (861) 222-22-22',
+                'content' => '8-800-200-60-50',
                 'visibility' => true,
-            ]
-        );
-
-        CmsSetting::firstOrCreate(
-            ['name' => 'contact_email'],
+            ],
             [
+                'name' => 'contact_email',
                 'description' => 'Контактный email',
-                'content' => 'info@tfoms.ru',
+                'content' => 'info@kubanoms.ru',
                 'visibility' => true,
-            ]
-        );
-
-        CmsSetting::firstOrCreate(
-            ['name' => 'contact_address'],
+            ],
             [
+                'name' => 'contact_address',
                 'description' => 'Контактный адрес',
-                'content' => '350000, г. Краснодар, ул. Красная, 1',
+                'content' => '350020, г. Краснодар, ул. Красная, 178',
                 'visibility' => true,
-            ]
-        );
-
-        CmsSetting::firstOrCreate(
-            ['name' => 'contact_work_time'],
+            ],
             [
+                'name' => 'contact_work_time',
                 'description' => 'Время работы',
-                'content' => 'Пн-Пт: 9:00-18:00, Сб: 9:00-13:00',
+                'content' => 'Пн–Чт: 9:00–18:00, Пт: 9:00–16:45',
                 'visibility' => true,
-            ]
-        );
+            ],
+        ];
+
+        foreach ($settings as $setting) {
+            CmsSetting::updateOrCreate(
+                ['name' => $setting['name']],
+                [
+                    'description' => $setting['description'],
+                    'content' => $setting['content'],
+                    'visibility' => (bool) $setting['visibility'],
+                ],
+            );
+        }
     }
 }

@@ -20,9 +20,38 @@ class MenuRepository
             return collect();
         }
 
+        $maxDepth = max(1, (int) ($menu->max_depth ?? 1));
+
         return $menu->items()
-            ->with(['children' => fn ($query) => $query->with('children')])
             ->where('visible', true)
+            ->whereNull('parent_id')
+            ->orderBy('sort_order')
+            ->with([
+                'page',
+                ...$this->childrenEagerLoads($maxDepth - 1),
+            ])
             ->get();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function childrenEagerLoads(int $remainingDepth): array
+    {
+        if ($remainingDepth <= 0) {
+            return [];
+        }
+
+        return [
+            'children' => function ($query) use ($remainingDepth): void {
+                $query
+                    ->where('visible', true)
+                    ->orderBy('sort_order')
+                    ->with([
+                        'page',
+                        ...$this->childrenEagerLoads($remainingDepth - 1),
+                    ]);
+            },
+        ];
     }
 }
