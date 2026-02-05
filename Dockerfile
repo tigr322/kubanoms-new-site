@@ -55,7 +55,12 @@ COPY . .
 RUN cp .env.example .env
 
 # Устанавливаем зависимости Composer с увеличенным таймаутом
-RUN composer install --no-dev --optimize-autoloader
+ENV COMPOSER_ALLOW_SUPERUSER=1 \
+    COMPOSER_NO_INTERACTION=1 \
+    COMPOSER_PROCESS_TIMEOUT=1200
+
+RUN composer config -g process-timeout 1200 && \
+    composer install --no-dev --optimize-autoloader --prefer-dist --no-progress
 
 # Генерируем ключ приложения
 RUN php artisan key:generate --force
