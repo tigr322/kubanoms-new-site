@@ -9,6 +9,10 @@ use Illuminate\Support\Str;
 
 class BannerSettingHelper
 {
+    private const TYPE_IMAGE = 'image';
+
+    private const TYPE_HTML = 'html';
+
     public static function isBanner(?string $name): bool
     {
         return filled($name) && Str::contains(Str::upper($name), 'BANNERS');
@@ -27,20 +31,127 @@ class BannerSettingHelper
 
     public static function buildHtml(array $banners): string
     {
-        return collect($banners)
-            ->filter(fn ($item) => filled($item['image'] ?? null))
-            ->map(function ($item): string {
+        return collect(self::normalizeBanners($banners))
+            ->map(function (array $item): string {
+                if (($item['type'] ?? self::TYPE_IMAGE) === self::TYPE_HTML) {
+                    return self::normalizeContent($item['html'] ?? '') ?? '';
+                }
+
                 $src = self::toPublicUrl($item['image']);
                 $alt = e($item['alt'] ?? 'Баннер');
                 $img = '<img src="'.$src.'" alt="'.$alt.'" />';
 
-                if (filled($item['url'] ?? null)) {
-                    return '<a href="'.e($item['url']).'" target="_blank" rel="noopener">'.$img.'</a>';
+                if (! filled($item['url'] ?? null)) {
+                    return $img;
                 }
 
-                return $img;
+                $target = ($item['open_in_new_tab'] ?? true) ? ' target="_blank" rel="noopener"' : '';
+
+                return '<a href="'.e($item['url']).'"'.$target.'>'.$img.'</a>';
             })
+            ->filter()
             ->implode(PHP_EOL);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $banners
+     * @return array<int, array<string, mixed>>
+     */
+    public static function normalizeBanners(array $banners): array
+    {
+        return collect($banners)
+            ->filter(fn (array $item): bool => filled($item['type'] ?? null) || filled($item['image'] ?? null) || filled($item['html'] ?? null))
+            ->map(function (array $item): ?array {
+                $type = $item['type'] ?? self::TYPE_IMAGE;
+
+                if ($type === self::TYPE_HTML) {
+                    $html = trim((string) ($item['html'] ?? ''));
+
+                    if ($html === '') {
+                        return null;
+                    }
+
+                    return [
+                        'type' => self::TYPE_HTML,
+                        'html' => $html,
+                    ];
+                }
+
+                $image = $item['image'] ?? null;
+
+                if (is_array($image)) {
+                    $image = $image[0] ?? null;
+                }
+
+                if (! $image) {
+                    return null;
+                }
+
+                $relative = self::toRelativePath((string) $image);
+
+                return [
+                    'type' => self::TYPE_IMAGE,
+                    'image' => $relative ?? $image,
+                    'url' => filled($item['url'] ?? null) ? $item['url'] : null,
+                    'alt' => filled($item['alt'] ?? null) ? $item['alt'] : null,
+                    'open_in_new_tab' => $item['open_in_new_tab'] ?? true,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public static function decodeContent(?string $content): array
+    {
+        if (! filled($content)) {
+            return [];
+        }
+
+        $trimmed = trim($content);
+
+        if (self::isJsonContent($trimmed)) {
+            $decoded = json_decode($trimmed, true);
+
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $payload = $decoded['banners'] ?? $decoded;
+
+                if (is_array($payload)) {
+                    return self::normalizeBanners($payload);
+                }
+            }
+        }
+
+        return self::extractFromContent($content);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $banners
+     */
+    public static function encodeContent(array $banners): string
+    {
+        return json_encode(
+            self::normalizeBanners($banners),
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        ) ?: '[]';
+    }
+
+    public static function renderContent(?string $content): ?string
+    {
+        if (! filled($content)) {
+            return $content;
+        }
+
+        $trimmed = trim($content);
+
+        if (self::isJsonContent($trimmed)) {
+            return self::buildHtml(self::decodeContent($trimmed));
+        }
+
+        return self::normalizeContent($content);
     }
 
     public static function extractFromContent(?string $content): array
@@ -72,11 +183,15 @@ class BannerSettingHelper
             }
 
             $items[] = [
+                'type' => self::TYPE_IMAGE,
                 'image' => $relative,
                 'url' => $image->parentNode instanceof DOMElement && $image->parentNode->tagName === 'a'
                     ? ($image->parentNode->getAttribute('href') ?: null)
                     : null,
                 'alt' => $image->getAttribute('alt') ?: null,
+                'open_in_new_tab' => $image->parentNode instanceof DOMElement
+                    && $image->parentNode->tagName === 'a'
+                    && $image->parentNode->getAttribute('target') !== '_self',
             ];
         }
 
@@ -136,5 +251,16 @@ class BannerSettingHelper
         }
 
         return $url;
+    }
+
+    private static function isJsonContent(string $content): bool
+    {
+        if (! str_starts_with($content, '[') && ! str_starts_with($content, '{')) {
+            return false;
+        }
+
+        json_decode($content);
+
+        return json_last_error() === JSON_ERROR_NONE;
     }
 }

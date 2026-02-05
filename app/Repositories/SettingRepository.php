@@ -28,7 +28,7 @@ class SettingRepository
                 $content = $setting->content;
 
                 if (BannerSettingHelper::isBanner($setting->name)) {
-                    $content = BannerSettingHelper::normalizeContent($content);
+                    $content = BannerSettingHelper::renderContent($content);
                 }
 
                 return [$setting->name => $content];

@@ -53,4 +53,38 @@ class MenuRepositoryTest extends TestCase
         // Menu id should be inherited from parent.
         $this->assertSame($menu->id, $child->fresh()->menu_id);
     }
+
+    public function test_it_uses_the_latest_menu_with_same_name(): void
+    {
+        $olderMenu = CmsMenu::query()->create([
+            'name' => 'NAVBAR',
+            'title' => 'Navbar Old',
+            'max_depth' => 1,
+        ]);
+
+        CmsMenuItem::query()->create([
+            'menu_id' => $olderMenu->id,
+            'title' => 'Old Root',
+            'sort_order' => 1,
+            'visible' => true,
+        ]);
+
+        $latestMenu = CmsMenu::query()->create([
+            'name' => 'NAVBAR',
+            'title' => 'Navbar Latest',
+            'max_depth' => 1,
+        ]);
+
+        CmsMenuItem::query()->create([
+            'menu_id' => $latestMenu->id,
+            'title' => 'Latest Root',
+            'sort_order' => 1,
+            'visible' => true,
+        ]);
+
+        $items = app(MenuRepository::class)->getVisibleItems('NAVBAR');
+
+        $this->assertCount(1, $items);
+        $this->assertSame('Latest Root', $items->first()->title);
+    }
 }

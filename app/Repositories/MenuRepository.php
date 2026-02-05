@@ -9,7 +9,10 @@ class MenuRepository
 {
     public function findByName(string $name): ?CmsMenu
     {
-        return CmsMenu::query()->where('name', $name)->first();
+        return CmsMenu::query()
+            ->where('name', $name)
+            ->orderByDesc('id')
+            ->first();
     }
 
     public function getVisibleItems(string $name): Collection

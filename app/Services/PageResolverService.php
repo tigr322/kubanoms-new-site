@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Filament\Resources\Cms\CmsSettings\BannerSettingHelper;
 use App\Models\Cms\CmsPage;
 use App\PageStatus;
 use App\Repositories\MenuRepository;
@@ -25,7 +26,7 @@ class PageResolverService
                 'id' => $page->id,
                 'title' => $page->title,
                 'title_short' => $page->title_short,
-                'content' => $page->content,
+                'content' => BannerSettingHelper::normalizeContent($page->content),
                 'meta_description' => $page->meta_description,
                 'meta_keywords' => $page->meta_keywords,
                 'publication_date' => optional($page->publication_date)?->format('d.m.Y'),
