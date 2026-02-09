@@ -40,7 +40,33 @@ class KubanomsPageContentImporter
         'mp3',
     ];
 
+    /**
+     * @var array<int, string>
+     */
+    private const array NON_PAGE_ASSET_EXTENSIONS = [
+        'jpg',
+        'jpeg',
+        'png',
+        'gif',
+        'webp',
+        'svg',
+        'bmp',
+        'ico',
+        'css',
+        'js',
+        'json',
+        'xml',
+        'woff',
+        'woff2',
+        'ttf',
+        'eot',
+    ];
+
     private const string SYSTEM_USER = 'import:kubanoms';
+
+    public function __construct(
+        private readonly KubanomsSitemapParser $sitemapParser,
+    ) {}
 
     /**
      * @return array{
@@ -181,7 +207,194 @@ class KubanomsPageContentImporter
     }
 
     /**
-     * @return array{title: string|null, content: string, meta_description: string|null, meta_keywords: string|null}|null
+     * @return array{
+     *     sitemap_nodes_total: int,
+     *     pages_queued: int,
+     *     pages_processed: int,
+     *     pages_created: int,
+     *     pages_updated: int,
+     *     parent_links_updated: int,
+     *     menu_items_updated: int,
+     *     pages_failed: int,
+     *     content_missing: int,
+     *     links_found: int,
+     *     links_queued: int,
+     *     images_downloaded: int,
+     *     images_failed: int,
+     *     images_skipped: int
+     * }
+     */
+    public function importFromSitemapTree(
+        string $sitemapFile,
+        string $baseUrl,
+        int $maxDepth = 3,
+        string $disk = 'public',
+        string $imageDirectory = 'cms/page/images',
+        bool $updateExistingMeta = false,
+        ?int $limit = null,
+    ): array {
+        $resolved = $this->resolveFilePath($sitemapFile);
+
+        if (! is_file($resolved) || ! is_readable($resolved)) {
+            throw new RuntimeException(sprintf('Файл карты сайта не найден: %s', $resolved));
+        }
+
+        $html = File::get($resolved);
+
+        if ($html === false) {
+            throw new RuntimeException(sprintf('Не удалось прочитать файл карты сайта: %s', $resolved));
+        }
+
+        $tree = $this->sitemapParser->parse($this->normalizeHtml($html));
+
+        $stats = [
+            'sitemap_nodes_total' => 0,
+            'pages_queued' => 0,
+            'pages_processed' => 0,
+            'pages_created' => 0,
+            'pages_updated' => 0,
+            'parent_links_updated' => 0,
+            'menu_items_updated' => 0,
+            'pages_failed' => 0,
+            'content_missing' => 0,
+            'links_found' => 0,
+            'links_queued' => 0,
+            'images_downloaded' => 0,
+            'images_failed' => 0,
+            'images_skipped' => 0,
+        ];
+
+        if (empty($tree)) {
+            return $stats;
+        }
+
+        $maxDepth = min(3, max(1, $maxDepth));
+        $baseRoot = $this->baseRoot($baseUrl);
+        $baseHost = parse_url($baseRoot, PHP_URL_HOST) ?? '';
+        $imageDirectory = trim($imageDirectory, '/');
+        $imageCache = [];
+
+        /** @var array<int, array{url: string, parent_url: string|null, depth: int, force_parent: bool}> $queue */
+        $queue = [];
+        /** @var array<string, int> $plannedDepth */
+        $plannedDepth = [];
+        /** @var array<string, int> $processedDepth */
+        $processedDepth = [];
+
+        $this->seedQueueFromSitemapTree(
+            tree: $tree,
+            baseRoot: $baseRoot,
+            baseHost: $baseHost,
+            queue: $queue,
+            plannedDepth: $plannedDepth,
+            stats: $stats,
+            parentUrl: null,
+        );
+
+        while (! empty($queue)) {
+            if ($limit !== null && $stats['pages_processed'] >= $limit) {
+                break;
+            }
+
+            /** @var array{url: string, parent_url: string|null, depth: int, force_parent: bool} $task */
+            $task = array_shift($queue);
+            $pageUrl = $task['url'];
+            $parentUrl = $task['parent_url'];
+            $depth = $task['depth'];
+            $forceParent = $task['force_parent'];
+
+            if (($processedDepth[$pageUrl] ?? PHP_INT_MAX) <= $depth) {
+                continue;
+            }
+
+            $processedDepth[$pageUrl] = $depth;
+            $stats['pages_processed']++;
+
+            $html = $this->fetchPageHtml($pageUrl, $baseRoot);
+
+            if ($html === null) {
+                $stats['pages_failed']++;
+
+                continue;
+            }
+
+            $parsed = $this->parseContent(
+                html: $html,
+                baseRoot: $baseRoot,
+                baseHost: $baseHost,
+                disk: $disk,
+                imageDirectory: $imageDirectory,
+                imageCache: $imageCache,
+                stats: $stats,
+            );
+
+            if (! $parsed) {
+                $stats['content_missing']++;
+
+                continue;
+            }
+
+            $parentPageId = $this->resolveParentPageIdByUrl($parentUrl);
+            $result = $this->upsertPageContent(
+                pageUrl: $pageUrl,
+                parsed: $parsed,
+                parentPageId: $parentPageId,
+                forceParent: $forceParent,
+                updateExistingMeta: $updateExistingMeta,
+            );
+
+            if ($result['created']) {
+                $stats['pages_created']++;
+            } else {
+                $stats['pages_updated']++;
+            }
+
+            if ($result['parent_updated']) {
+                $stats['parent_links_updated']++;
+            }
+
+            $stats['menu_items_updated'] += $this->attachMenuItems($result['page'], $baseRoot);
+
+            if ($depth >= $maxDepth) {
+                continue;
+            }
+
+            $nextDepth = $depth + 1;
+
+            foreach ($parsed['content_links'] as $contentLink) {
+                $stats['links_found']++;
+
+                if ($contentLink === $result['page']->url) {
+                    continue;
+                }
+
+                if (! $this->enqueuePageTask(
+                    queue: $queue,
+                    plannedDepth: $plannedDepth,
+                    url: $contentLink,
+                    parentUrl: $result['page']->url,
+                    depth: $nextDepth,
+                    forceParent: false,
+                )) {
+                    continue;
+                }
+
+                $stats['pages_queued']++;
+                $stats['links_queued']++;
+            }
+        }
+
+        return $stats;
+    }
+
+    /**
+     * @return array{
+     *     title: string|null,
+     *     content: string,
+     *     meta_description: string|null,
+     *     meta_keywords: string|null,
+     *     content_links: array<int, string>
+     * }|null
      */
     private function parseContent(
         string $html,
@@ -216,6 +429,7 @@ class KubanomsPageContentImporter
         $this->normalizeLinks($contentNode, $baseRoot, $baseHost);
         $this->normalizeForms($contentNode, $baseRoot, $baseHost);
         $this->normalizeMediaSources($contentNode, $baseRoot);
+        $contentLinks = $this->extractContentLinks($contentNode, $baseRoot, $baseHost);
         $this->normalizeImages(
             contentNode: $contentNode,
             baseRoot: $baseRoot,
@@ -231,7 +445,34 @@ class KubanomsPageContentImporter
             'content' => trim($this->innerHtml($contentNode)),
             'meta_description' => $metaDescription,
             'meta_keywords' => $metaKeywords,
+            'content_links' => $contentLinks,
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function extractContentLinks(DOMElement $contentNode, string $baseRoot, string $baseHost): array
+    {
+        $links = [];
+
+        foreach ($this->toArray($contentNode->getElementsByTagName('a')) as $link) {
+            $href = trim($link->getAttribute('href'));
+
+            if ($href === '') {
+                continue;
+            }
+
+            $normalized = $this->normalizeInternalPageUrl($href, $baseRoot, $baseHost);
+
+            if ($normalized === null) {
+                continue;
+            }
+
+            $links[$normalized] = true;
+        }
+
+        return array_keys($links);
     }
 
     private function findContentNode(DOMXPath $xpath): ?DOMElement
@@ -768,6 +1009,319 @@ class KubanomsPageContentImporter
         $detected = mb_detect_encoding($html, ['UTF-8', 'Windows-1251', 'KOI8-R', 'ISO-8859-1'], true);
 
         return $detected ?: null;
+    }
+
+    /**
+     * @param  array<int, array{title: string, href: string, children: array<int, array<string, mixed>>}>  $tree
+     * @param  array<int, array{url: string, parent_url: string|null, depth: int, force_parent: bool}>  $queue
+     * @param  array<string, int>  $plannedDepth
+     * @param  array<string, int>  $stats
+     */
+    private function seedQueueFromSitemapTree(
+        array $tree,
+        string $baseRoot,
+        string $baseHost,
+        array &$queue,
+        array &$plannedDepth,
+        array &$stats,
+        ?string $parentUrl,
+    ): void {
+        foreach ($tree as $node) {
+            $href = trim((string) ($node['href'] ?? ''));
+            $pageUrl = $href !== '' ? $this->normalizeInternalPageUrl($href, $baseRoot, $baseHost) : null;
+            $nextParentUrl = $parentUrl;
+
+            if ($pageUrl !== null) {
+                $stats['sitemap_nodes_total']++;
+
+                if ($this->enqueuePageTask(
+                    queue: $queue,
+                    plannedDepth: $plannedDepth,
+                    url: $pageUrl,
+                    parentUrl: $parentUrl,
+                    depth: 1,
+                    forceParent: true,
+                )) {
+                    $stats['pages_queued']++;
+                }
+
+                $nextParentUrl = $pageUrl;
+            }
+
+            $children = $node['children'] ?? [];
+
+            if (! is_array($children) || empty($children)) {
+                continue;
+            }
+
+            $this->seedQueueFromSitemapTree(
+                tree: $children,
+                baseRoot: $baseRoot,
+                baseHost: $baseHost,
+                queue: $queue,
+                plannedDepth: $plannedDepth,
+                stats: $stats,
+                parentUrl: $nextParentUrl,
+            );
+        }
+    }
+
+    /**
+     * @param  array<int, array{url: string, parent_url: string|null, depth: int, force_parent: bool}>  $queue
+     * @param  array<string, int>  $plannedDepth
+     */
+    private function enqueuePageTask(
+        array &$queue,
+        array &$plannedDepth,
+        string $url,
+        ?string $parentUrl,
+        int $depth,
+        bool $forceParent,
+    ): bool {
+        $currentDepth = $plannedDepth[$url] ?? null;
+
+        if ($currentDepth !== null && $depth >= $currentDepth) {
+            return false;
+        }
+
+        $plannedDepth[$url] = $depth;
+        $queue[] = [
+            'url' => $url,
+            'parent_url' => $parentUrl,
+            'depth' => $depth,
+            'force_parent' => $forceParent,
+        ];
+
+        return true;
+    }
+
+    private function fetchPageHtml(string $pageUrl, string $baseRoot): ?string
+    {
+        $url = rtrim($baseRoot, '/').$pageUrl;
+
+        try {
+            $response = Http::retry(3, 250, throw: false)
+                ->timeout(30)
+                ->withUserAgent('Mozilla/5.0 (compatible; KubanomsContentImporter/1.0)')
+                ->get($url);
+
+            if ($response->failed()) {
+                return null;
+            }
+
+            return $this->normalizeHtml($response->body());
+        } catch (Throwable $exception) {
+            return null;
+        }
+    }
+
+    private function resolveParentPageIdByUrl(?string $parentUrl): ?int
+    {
+        if ($parentUrl === null || $parentUrl === '') {
+            return null;
+        }
+
+        return $this->findPageByUrl($parentUrl)?->id;
+    }
+
+    /**
+     * @param  array{
+     *     title: string|null,
+     *     content: string,
+     *     meta_description: string|null,
+     *     meta_keywords: string|null,
+     *     content_links: array<int, string>
+     * }  $parsed
+     * @return array{page: CmsPage, created: bool, parent_updated: bool}
+     */
+    private function upsertPageContent(
+        string $pageUrl,
+        array $parsed,
+        ?int $parentPageId,
+        bool $forceParent,
+        bool $updateExistingMeta,
+    ): array {
+        $page = $this->findPageByUrl($pageUrl);
+        $title = $parsed['title'] ?: ($page?->title ?? $this->titleFromUrl($pageUrl));
+        $metaDescription = $parsed['meta_description'];
+        $metaKeywords = $parsed['meta_keywords'];
+
+        if (! $page) {
+            $page = CmsPage::query()->create([
+                'parent_id' => $parentPageId,
+                'title' => $title,
+                'title_short' => $title,
+                'content' => $parsed['content'],
+                'page_status' => PageStatus::PUBLISHED->value,
+                'page_of_type' => PageType::PAGE->value,
+                'template' => 'default',
+                'url' => $pageUrl,
+                'meta_description' => $metaDescription,
+                'meta_keywords' => $metaKeywords,
+                'create_date' => now(),
+                'create_user' => self::SYSTEM_USER,
+                'update_date' => now(),
+                'update_user' => self::SYSTEM_USER,
+            ]);
+
+            return [
+                'page' => $page,
+                'created' => true,
+                'parent_updated' => $parentPageId !== null,
+            ];
+        }
+
+        $updates = [
+            'content' => $parsed['content'],
+            'update_date' => now(),
+            'update_user' => self::SYSTEM_USER,
+        ];
+        $parentUpdated = false;
+
+        if ($updateExistingMeta || $page->title === null || $page->title === '') {
+            $updates['title'] = $title;
+            $updates['title_short'] = $title;
+        }
+
+        if ($updateExistingMeta || ! $page->meta_description) {
+            $updates['meta_description'] = $metaDescription;
+        }
+
+        if ($updateExistingMeta || ! $page->meta_keywords) {
+            $updates['meta_keywords'] = $metaKeywords;
+        }
+
+        if ($forceParent) {
+            if ($page->parent_id !== $parentPageId) {
+                $updates['parent_id'] = $parentPageId;
+                $parentUpdated = true;
+            }
+        } elseif ($parentPageId !== null && $page->parent_id === null) {
+            $updates['parent_id'] = $parentPageId;
+            $parentUpdated = true;
+        }
+
+        $page->update($updates);
+
+        return [
+            'page' => $page->fresh(),
+            'created' => false,
+            'parent_updated' => $parentUpdated,
+        ];
+    }
+
+    private function findPageByUrl(string $url): ?CmsPage
+    {
+        return CmsPage::query()
+            ->whereIn('url', $this->urlVariants($url))
+            ->first();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function urlVariants(string $url): array
+    {
+        $path = parse_url($url, PHP_URL_PATH) ?: $url;
+        $normalized = '/'.ltrim((string) $path, '/');
+
+        if ($normalized === '//') {
+            $normalized = '/';
+        }
+
+        if ($normalized === '/') {
+            return ['/', '/index.html', '/index.htm'];
+        }
+
+        $variants = [$normalized];
+
+        if (str_ends_with($normalized, '/index.html') || str_ends_with($normalized, '/index.htm')) {
+            $dir = '/'.trim(dirname($normalized), '/').'/';
+            $variants[] = $dir;
+            $variants[] = rtrim($dir, '/');
+        } elseif (str_ends_with($normalized, '/')) {
+            $trimmed = rtrim($normalized, '/');
+            $variants[] = $trimmed;
+            $variants[] = $trimmed.'/index.html';
+            $variants[] = $trimmed.'/index.htm';
+        } else {
+            $extension = strtolower(pathinfo($normalized, PATHINFO_EXTENSION));
+
+            if ($extension === '') {
+                $variants[] = $normalized.'/';
+                $variants[] = $normalized.'/index.html';
+                $variants[] = $normalized.'/index.htm';
+            }
+        }
+
+        return array_values(array_unique($variants));
+    }
+
+    private function titleFromUrl(string $url): string
+    {
+        $path = parse_url($url, PHP_URL_PATH) ?: $url;
+        $clean = trim((string) $path, '/');
+
+        if ($clean === '') {
+            return 'Главная';
+        }
+
+        $filename = pathinfo($clean, PATHINFO_FILENAME);
+
+        if ($filename === '' || $filename === 'index') {
+            $directory = trim(dirname($clean), '/');
+
+            if ($directory === '' || $directory === '.') {
+                return 'Без названия';
+            }
+
+            return basename($directory);
+        }
+
+        return $filename;
+    }
+
+    private function normalizeInternalPageUrl(string $href, string $baseRoot, string $baseHost): ?string
+    {
+        $href = trim($href);
+
+        if ($href === '' || Str::startsWith($href, ['#', 'mailto:', 'tel:', 'javascript:', 'data:', 'blob:'])) {
+            return null;
+        }
+
+        $absolute = $this->absoluteUrl($href, $baseRoot);
+
+        if ($absolute === '' || ! $this->isInternalUrl($absolute, $baseHost)) {
+            return null;
+        }
+
+        $path = parse_url($absolute, PHP_URL_PATH) ?? '';
+
+        if ($path === '') {
+            return '/';
+        }
+
+        $normalized = '/'.ltrim($path, '/');
+
+        if ($normalized !== '/' && (str_ends_with($normalized, '/index.html') || str_ends_with($normalized, '/index.htm'))) {
+            $normalized = '/'.trim(dirname($normalized), '/').'/';
+        }
+
+        if (Str::startsWith($normalized, '/print/')) {
+            return null;
+        }
+
+        if ($this->isFileLink($normalized)) {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($normalized, PATHINFO_EXTENSION));
+
+        if ($extension !== '' && in_array($extension, self::NON_PAGE_ASSET_EXTENSIONS, true)) {
+            return null;
+        }
+
+        return $normalized;
     }
 
     private function attachMenuItems(CmsPage $page, string $baseRoot): int
