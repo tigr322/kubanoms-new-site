@@ -189,9 +189,12 @@ ul.navbar > li:hover > ul > li span {
 .bottom-banners {
     padding: 15px 0;
     text-align: center;
-    background: #f5f5f5;
+    background: #ffffff;
     border-top: 1px solid #ddd;
     border-bottom: 1px solid #ddd;
+    border-left: 1px solid #ddd;
+    border-right: 1px solid #ddd;
+
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
