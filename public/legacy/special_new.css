@@ -260,6 +260,14 @@ ul.sidebar > li.active > ul {
 ul.sidebar > li.active > ul > li a {
     text-decoration: none;
 }
+ul.sidebar > li.active > ul > li:hover a,
+ul.sidebar > li.active > ul > li:hover span {
+    color: #fff;
+}
+body.white ul.sidebar > li.active > ul > li:hover a,
+body.white ul.sidebar > li.active > ul > li:hover span {
+    color: #000;
+}
 
 .content-wrapper {
     float: left;

@@ -437,6 +437,13 @@ ul.sidebar > li.active > ul {
 ul.sidebar > li.active > ul > li a {
     text-decoration: none;
 }
+ul.sidebar > li.active > ul > li:hover {
+    background-color: #08b7be;
+}
+ul.sidebar > li.active > ul > li:hover a,
+ul.sidebar > li.active > ul > li:hover span {
+    color: #fff;
+}
 
 
 .virtual_reception {
