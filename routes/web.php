@@ -7,6 +7,7 @@ use App\Http\Controllers\Oms\VirtualReceptionController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\RssController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\VirtualReceptionController as NewVirtualReceptionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -18,6 +19,7 @@ Route::get('/dashboard', function () {
 
 Route::get('/rss.xml', [RssController::class, 'index'])->name('rss');
 Route::get('/search', [SearchController::class, 'index'])->name('search');
+Route::get('/sitemap', [SitemapController::class, 'index'])->name('sitemap');
 Route::get('/newslist', [NewsController::class, 'index'])->name('news.index');
 Route::get('/branches', [BranchController::class, 'index'])->name('branches');
 
