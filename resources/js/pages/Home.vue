@@ -84,7 +84,7 @@ defineProps<{
 
 .contacts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 15px;
 }
 
@@ -106,5 +106,17 @@ defineProps<{
 
 .contact-item:not(:last-child) {
     margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+    .contacts-section {
+        padding: 14px;
+        margin: 12px 0;
+    }
+
+    .contacts-section h2 {
+        font-size: 20px;
+        margin-bottom: 12px;
+    }
 }
 </style>

@@ -1371,3 +1371,232 @@ table td.cat_noact {
 .pagination .paginate_button.next a {
     font-weight: bold;
 }
+
+/* ===== Responsive layout ===== */
+@media (max-width: 1240px) {
+    .container {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0 12px;
+    }
+
+    ul.navbar {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    ul.navbar > li > a {
+        min-height: 44px;
+        line-height: 1.25;
+        padding: 8px 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 1024px) {
+    .header .logo,
+    .header .title,
+    .header .top-nav {
+        float: none;
+        width: 100%;
+    }
+
+    .header .logo {
+        margin: 12px auto 0;
+    }
+
+    .header .title {
+        height: auto;
+        padding-top: 10px;
+        text-align: center;
+    }
+
+    .header .title a {
+        display: block;
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .header .top-nav {
+        text-align: center;
+    }
+
+    .header .top-nav .buttons {
+        margin-top: 12px;
+    }
+
+    .header .top-nav .today {
+        margin-top: 12px;
+    }
+
+    .main {
+        padding-top: 12px;
+    }
+
+    .sidebar-wrapper,
+    .content-wrapper,
+    .main-content,
+    .content-left {
+        float: none;
+        width: 100%;
+        margin: 0;
+    }
+
+    .sidebar-wrapper {
+        margin-bottom: 16px;
+    }
+
+    .content-left {
+        margin-top: 16px;
+    }
+
+    .content.index,
+    .content.block {
+        width: auto;
+        float: none;
+    }
+
+    .banners img,
+    .content-left .content img {
+        max-width: 100%;
+        height: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        background: #fff;
+    }
+
+    .top,
+    .bottom-bar {
+        background: none;
+    }
+
+    .container {
+        padding: 0 10px;
+    }
+
+    .header .image img {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+
+    .header .top-nav .buttons ul {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .header .special {
+        display: none;
+    }
+
+    ul.navbar {
+        display: block;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    ul.navbar > li {
+        display: block;
+        border-right: none;
+        border-bottom: 1px solid #e0e4e7;
+    }
+
+    ul.navbar > li:last-child {
+        border-bottom: none;
+    }
+
+    ul.navbar > li > a {
+        min-height: auto;
+        justify-content: flex-start;
+        text-align: left;
+        padding: 12px 14px;
+    }
+
+    ul.navbar > li > ul {
+        display: block;
+        position: static;
+        width: 100%;
+        background-color: #f2f6f7;
+    }
+
+    ul.navbar > li > ul > li {
+        border-bottom: 1px solid #e0e4e7;
+        padding: 0;
+    }
+
+    ul.navbar > li > ul > li:last-child {
+        border-bottom: none;
+    }
+
+    ul.navbar > li > ul > li a,
+    ul.navbar > li > ul > li span {
+        display: block;
+        color: #0e517e;
+        text-decoration: none;
+        font-size: 13px;
+        padding: 10px 14px 10px 22px;
+    }
+
+    ul.sidebar {
+        width: 100%;
+    }
+
+    ul.sidebar > li.active > a {
+        width: auto;
+        left: 0;
+        padding: 10px 19px;
+    }
+
+    .content {
+        padding: 12px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .content table {
+        min-width: max-content;
+    }
+
+    .content-left {
+        display: none;
+    }
+
+    .footer .column,
+    .footer .contact,
+    .footer .section-site,
+    .footer .additionally {
+        float: none;
+        width: 100%;
+        padding: 20px 0 0;
+    }
+
+    .footer .copyright-wrapper {
+        display: block;
+        height: auto;
+    }
+
+    .footer .copyright-wrapper .copyright,
+    .footer .copyright-wrapper .developer,
+    .footer .copyright-wrapper .counters {
+        display: block;
+        text-align: left;
+        padding: 10px 0;
+    }
+
+    .bottom-banners {
+        gap: 12px;
+    }
+
+    .bottom-banners img {
+        max-width: 140px;
+        max-height: 80px;
+    }
+}

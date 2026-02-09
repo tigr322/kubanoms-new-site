@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import { computed, onMounted, watch } from 'vue';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AccessibilityPanel from '@/components/public/AccessibilityPanel.vue';
 import Navbar from '@/components/public/Navbar.vue';
 import Sidebar from '@/components/public/Sidebar.vue';
@@ -44,6 +44,13 @@ const props = withDefaults(
 );
 
 const isSpecial = computed(() => Number(props.special) === 1);
+const page = usePage();
+const mainContentRef = ref<HTMLElement | null>(null);
+const hideRightSidebar = ref(false);
+
+let resizeObserver: ResizeObserver | null = null;
+let mutationObserver: MutationObserver | null = null;
+let frameId: number | null = null;
 
 const setSpecialCookie = (value: boolean): void => {
     const expires = new Date();
@@ -57,8 +64,71 @@ const toggleSpecial = (): void => {
     window.location.reload();
 };
 
+const hasOverflowingTable = (): boolean => {
+    const mainContent = mainContentRef.value;
+
+    if (!mainContent) {
+        return false;
+    }
+
+    const containers = mainContent.querySelectorAll<HTMLElement>('.content');
+
+    return Array.from(containers).some((container) => {
+        const tables = container.querySelectorAll<HTMLTableElement>('table');
+
+        return Array.from(tables).some(
+            (table) => table.scrollWidth > container.clientWidth + 1,
+        );
+    });
+};
+
+const detectWideTables = (): void => {
+    if (hideRightSidebar.value) {
+        return;
+    }
+
+    hideRightSidebar.value = hasOverflowingTable();
+};
+
+const scheduleDetectWideTables = (): void => {
+    if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+    }
+
+    frameId = requestAnimationFrame(() => {
+        frameId = null;
+        detectWideTables();
+    });
+};
+
+const resetWideTablesState = (): void => {
+    hideRightSidebar.value = false;
+
+    nextTick(() => {
+        scheduleDetectWideTables();
+    });
+};
+
 onMounted(() => {
     document.body.classList.toggle('special-mode', isSpecial.value);
+    scheduleDetectWideTables();
+
+    if (mainContentRef.value) {
+        mutationObserver = new MutationObserver(() => {
+            scheduleDetectWideTables();
+        });
+        mutationObserver.observe(mainContentRef.value, {
+            childList: true,
+            subtree: true,
+        });
+
+        resizeObserver = new ResizeObserver(() => {
+            scheduleDetectWideTables();
+        });
+        resizeObserver.observe(mainContentRef.value);
+    }
+
+    window.addEventListener('resize', scheduleDetectWideTables);
 });
 
 watch(
@@ -67,6 +137,23 @@ watch(
         document.body.classList.toggle('special-mode', enabled);
     },
 );
+
+watch(
+    () => page.url,
+    () => {
+        resetWideTablesState();
+    },
+);
+
+onBeforeUnmount(() => {
+    if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+    }
+
+    mutationObserver?.disconnect();
+    resizeObserver?.disconnect();
+    window.removeEventListener('resize', scheduleDetectWideTables);
+});
 </script>
 
 <template>
@@ -143,11 +230,17 @@ watch(
                         <Sidebar :items="menus.sidebar" />
                         <div class="banners" v-if="settings?.left_sidebar_banners" v-html="settings.left_sidebar_banners" />
                     </div>
-                    <div class="content-wrapper">
-                        <div class="main-content">
+                    <div class="content-wrapper" :class="{ 'hide-right-sidebar': hideRightSidebar }">
+                        <div ref="mainContentRef" class="main-content">
                             <slot />
                         </div>
-                        <div class="content-left" v-if="menus.current_information?.length || settings?.right_sidebar_banners || settings?.right_sidebar_menu">
+                        <div
+                            class="content-left"
+                            v-if="
+                                !hideRightSidebar &&
+                                (menus.current_information?.length || settings?.right_sidebar_banners || settings?.right_sidebar_menu)
+                            "
+                        >
                             <div class="banners" v-if="settings?.right_sidebar_banners" v-html="settings.right_sidebar_banners" />
                             <div class="content" v-if="settings?.right_sidebar_menu" v-html="settings.right_sidebar_menu" />
                             <div class="content" v-if="menus.current_information?.length">
@@ -196,3 +289,9 @@ watch(
         </div>
     </div>
 </template>
+
+<style scoped>
+.content-wrapper.hide-right-sidebar .main-content {
+    width: 100%;
+}
+</style>
