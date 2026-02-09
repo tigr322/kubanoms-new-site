@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Cms\CmsFileFolders;
 use App\Filament\Resources\Cms\CmsFileFolders\Pages\CreateCmsFileFolder;
 use App\Filament\Resources\Cms\CmsFileFolders\Pages\EditCmsFileFolder;
 use App\Filament\Resources\Cms\CmsFileFolders\Pages\ListCmsFileFolders;
+use App\Filament\Resources\Cms\CmsFileFolders\RelationManagers\FilesRelationManager;
 use App\Filament\Resources\Cms\CmsFileFolders\Schemas\CmsFileFolderForm;
 use App\Filament\Resources\Cms\CmsFileFolders\Tables\CmsFileFoldersTable;
 use App\Models\Cms\CmsFileFolder;
@@ -44,7 +45,7 @@ class CmsFileFolderResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            FilesRelationManager::class,
         ];
     }
 

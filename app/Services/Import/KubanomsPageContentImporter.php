@@ -2,6 +2,7 @@
 
 namespace App\Services\Import;
 
+use App\Models\Cms\CmsFile;
 use App\Models\Cms\CmsMenuItem;
 use App\Models\Cms\CmsPage;
 use App\PageStatus;
@@ -75,6 +76,9 @@ class KubanomsPageContentImporter
      *     pages_updated: int,
      *     menu_items_updated: int,
      *     content_missing: int,
+     *     files_downloaded: int,
+     *     files_failed: int,
+     *     files_skipped: int,
      *     images_downloaded: int,
      *     images_failed: int,
      *     images_skipped: int
@@ -85,6 +89,10 @@ class KubanomsPageContentImporter
         string $baseUrl,
         string $disk = 'public',
         string $imageDirectory = 'cms/page/images',
+        string $fileDirectory = 'cms/page/files',
+        bool $downloadExternalFiles = false,
+        bool $downloadDocuments = true,
+        bool $downloadImages = true,
         bool $updateExistingMeta = false,
         ?int $limit = null,
     ): array {
@@ -105,15 +113,22 @@ class KubanomsPageContentImporter
             'pages_updated' => 0,
             'menu_items_updated' => 0,
             'content_missing' => 0,
+            'files_downloaded' => 0,
+            'files_failed' => 0,
+            'files_skipped' => 0,
+            'document_links' => [],
             'images_downloaded' => 0,
             'images_failed' => 0,
             'images_skipped' => 0,
+            'image_links' => [],
         ];
 
         $baseRoot = $this->baseRoot($baseUrl);
         $baseHost = parse_url($baseRoot, PHP_URL_HOST) ?? '';
         $imageDirectory = trim($imageDirectory, '/');
+        $fileDirectory = trim($fileDirectory, '/');
         $imageCache = [];
+        $fileCache = [];
         $processed = 0;
 
         foreach ($files as $file) {
@@ -141,7 +156,12 @@ class KubanomsPageContentImporter
                 baseHost: $baseHost,
                 disk: $disk,
                 imageDirectory: $imageDirectory,
+                fileDirectory: $fileDirectory,
+                downloadExternalFiles: $downloadExternalFiles,
+                downloadDocuments: $downloadDocuments,
+                downloadImages: $downloadImages,
                 imageCache: $imageCache,
+                fileCache: $fileCache,
                 stats: $stats,
             );
 
@@ -219,6 +239,9 @@ class KubanomsPageContentImporter
      *     content_missing: int,
      *     links_found: int,
      *     links_queued: int,
+     *     files_downloaded: int,
+     *     files_failed: int,
+     *     files_skipped: int,
      *     images_downloaded: int,
      *     images_failed: int,
      *     images_skipped: int
@@ -230,6 +253,10 @@ class KubanomsPageContentImporter
         int $maxDepth = 3,
         string $disk = 'public',
         string $imageDirectory = 'cms/page/images',
+        string $fileDirectory = 'cms/page/files',
+        bool $downloadExternalFiles = false,
+        bool $downloadDocuments = true,
+        bool $downloadImages = true,
         bool $updateExistingMeta = false,
         ?int $limit = null,
     ): array {
@@ -259,9 +286,14 @@ class KubanomsPageContentImporter
             'content_missing' => 0,
             'links_found' => 0,
             'links_queued' => 0,
+            'files_downloaded' => 0,
+            'files_failed' => 0,
+            'files_skipped' => 0,
+            'document_links' => [],
             'images_downloaded' => 0,
             'images_failed' => 0,
             'images_skipped' => 0,
+            'image_links' => [],
         ];
 
         if (empty($tree)) {
@@ -272,7 +304,9 @@ class KubanomsPageContentImporter
         $baseRoot = $this->baseRoot($baseUrl);
         $baseHost = parse_url($baseRoot, PHP_URL_HOST) ?? '';
         $imageDirectory = trim($imageDirectory, '/');
+        $fileDirectory = trim($fileDirectory, '/');
         $imageCache = [];
+        $fileCache = [];
 
         /** @var array<int, array{url: string, parent_url: string|null, depth: int, force_parent: bool}> $queue */
         $queue = [];
@@ -324,7 +358,12 @@ class KubanomsPageContentImporter
                 baseHost: $baseHost,
                 disk: $disk,
                 imageDirectory: $imageDirectory,
+                fileDirectory: $fileDirectory,
+                downloadExternalFiles: $downloadExternalFiles,
+                downloadDocuments: $downloadDocuments,
+                downloadImages: $downloadImages,
                 imageCache: $imageCache,
+                fileCache: $fileCache,
                 stats: $stats,
             );
 
@@ -402,7 +441,12 @@ class KubanomsPageContentImporter
         string $baseHost,
         string $disk,
         string $imageDirectory,
+        string $fileDirectory,
+        bool $downloadExternalFiles,
+        bool $downloadDocuments,
+        bool $downloadImages,
         array &$imageCache,
+        array &$fileCache,
         array &$stats,
     ): ?array {
         $dom = new DOMDocument('1.0', 'UTF-8');
@@ -426,19 +470,44 @@ class KubanomsPageContentImporter
         $this->removeNodesBySelector($xpath, './/div[contains(@class,"print")]', $contentNode);
         $this->removeNodesBySelector($xpath, './/div[@id="status"]', $contentNode);
 
-        $this->normalizeLinks($contentNode, $baseRoot, $baseHost);
-        $this->normalizeForms($contentNode, $baseRoot, $baseHost);
-        $this->normalizeMediaSources($contentNode, $baseRoot);
-        $contentLinks = $this->extractContentLinks($contentNode, $baseRoot, $baseHost);
-        $this->normalizeImages(
+        $this->normalizeLinks(
             contentNode: $contentNode,
             baseRoot: $baseRoot,
             baseHost: $baseHost,
             disk: $disk,
-            imageDirectory: $imageDirectory,
-            imageCache: $imageCache,
+            fileDirectory: $fileDirectory,
+            downloadExternalFiles: $downloadExternalFiles,
+            downloadDocuments: $downloadDocuments,
+            fileCache: $fileCache,
             stats: $stats,
         );
+        $this->normalizeForms(
+            contentNode: $contentNode,
+            baseRoot: $baseRoot,
+            baseHost: $baseHost,
+            disk: $disk,
+            fileDirectory: $fileDirectory,
+            downloadExternalFiles: $downloadExternalFiles,
+            downloadDocuments: $downloadDocuments,
+            fileCache: $fileCache,
+            stats: $stats,
+        );
+        $this->normalizeMediaSources($contentNode, $baseRoot);
+        $contentLinks = $this->extractContentLinks($contentNode, $baseRoot, $baseHost);
+
+        if ($downloadImages) {
+            $this->normalizeImages(
+                contentNode: $contentNode,
+                baseRoot: $baseRoot,
+                baseHost: $baseHost,
+                disk: $disk,
+                imageDirectory: $imageDirectory,
+                imageCache: $imageCache,
+                stats: $stats,
+            );
+        } else {
+            $this->normalizeImageSourcesWithoutDownload($contentNode, $baseRoot);
+        }
 
         return [
             'title' => $title,
@@ -569,8 +638,17 @@ class KubanomsPageContentImporter
         }
     }
 
-    private function normalizeLinks(DOMElement $contentNode, string $baseRoot, string $baseHost): void
-    {
+    private function normalizeLinks(
+        DOMElement $contentNode,
+        string $baseRoot,
+        string $baseHost,
+        string $disk,
+        string $fileDirectory,
+        bool $downloadExternalFiles,
+        bool $downloadDocuments,
+        array &$fileCache,
+        array &$stats,
+    ): void {
         foreach ($this->toArray($contentNode->getElementsByTagName('a')) as $link) {
             $href = $link->getAttribute('href');
 
@@ -578,7 +656,17 @@ class KubanomsPageContentImporter
                 continue;
             }
 
-            $normalized = $this->normalizeHref($href, $baseRoot, $baseHost);
+            $normalized = $this->normalizeHref(
+                href: $href,
+                baseRoot: $baseRoot,
+                baseHost: $baseHost,
+                disk: $disk,
+                fileDirectory: $fileDirectory,
+                downloadExternalFiles: $downloadExternalFiles,
+                downloadDocuments: $downloadDocuments,
+                fileCache: $fileCache,
+                stats: $stats,
+            );
 
             if ($normalized !== '') {
                 $link->setAttribute('href', $normalized);
@@ -586,8 +674,17 @@ class KubanomsPageContentImporter
         }
     }
 
-    private function normalizeForms(DOMElement $contentNode, string $baseRoot, string $baseHost): void
-    {
+    private function normalizeForms(
+        DOMElement $contentNode,
+        string $baseRoot,
+        string $baseHost,
+        string $disk,
+        string $fileDirectory,
+        bool $downloadExternalFiles,
+        bool $downloadDocuments,
+        array &$fileCache,
+        array &$stats,
+    ): void {
         foreach ($this->toArray($contentNode->getElementsByTagName('form')) as $form) {
             $action = $form->getAttribute('action');
 
@@ -595,7 +692,17 @@ class KubanomsPageContentImporter
                 continue;
             }
 
-            $normalized = $this->normalizeHref($action, $baseRoot, $baseHost);
+            $normalized = $this->normalizeHref(
+                href: $action,
+                baseRoot: $baseRoot,
+                baseHost: $baseHost,
+                disk: $disk,
+                fileDirectory: $fileDirectory,
+                downloadExternalFiles: $downloadExternalFiles,
+                downloadDocuments: $downloadDocuments,
+                fileCache: $fileCache,
+                stats: $stats,
+            );
 
             if ($normalized !== '') {
                 $form->setAttribute('action', $normalized);
@@ -654,8 +761,34 @@ class KubanomsPageContentImporter
         }
     }
 
-    private function normalizeHref(string $href, string $baseRoot, string $baseHost): string
+    private function normalizeImageSourcesWithoutDownload(DOMElement $contentNode, string $baseRoot): void
     {
+        foreach ($this->toArray($contentNode->getElementsByTagName('img')) as $image) {
+            $src = $image->getAttribute('src');
+
+            if ($src === '') {
+                continue;
+            }
+
+            $normalized = $this->normalizeExternalSrc($src, $baseRoot);
+
+            if ($normalized !== '') {
+                $image->setAttribute('src', $normalized);
+            }
+        }
+    }
+
+    private function normalizeHref(
+        string $href,
+        string $baseRoot,
+        string $baseHost,
+        string $disk,
+        string $fileDirectory,
+        bool $downloadExternalFiles,
+        bool $downloadDocuments,
+        array &$fileCache,
+        array &$stats,
+    ): string {
         $href = trim($href);
 
         if ($href === '' || Str::startsWith($href, ['#', 'mailto:', 'tel:', 'javascript:'])) {
@@ -671,11 +804,23 @@ class KubanomsPageContentImporter
         $path = parse_url($absolute, PHP_URL_PATH) ?? '';
         $query = parse_url($absolute, PHP_URL_QUERY);
 
-        if ($this->isInternalUrl($absolute, $baseHost)) {
-            if ($this->isFileLink($path)) {
-                return $absolute;
-            }
+        $isInternalUrl = $this->isInternalUrl($absolute, $baseHost);
 
+        if ($downloadDocuments && $this->isFileLink($path) && ($isInternalUrl || $downloadExternalFiles)) {
+            return $this->downloadFile(
+                src: $href,
+                baseRoot: $baseRoot,
+                baseHost: $baseHost,
+                disk: $disk,
+                fileDirectory: $fileDirectory,
+                downloadExternalFiles: $downloadExternalFiles,
+                downloadDocuments: $downloadDocuments,
+                fileCache: $fileCache,
+                stats: $stats,
+            );
+        }
+
+        if ($isInternalUrl) {
             $normalized = '/'.ltrim($path, '/');
 
             if ($query) {
@@ -686,6 +831,89 @@ class KubanomsPageContentImporter
         }
 
         return $absolute;
+    }
+
+    private function downloadFile(
+        string $src,
+        string $baseRoot,
+        string $baseHost,
+        string $disk,
+        string $fileDirectory,
+        bool $downloadExternalFiles,
+        bool $downloadDocuments,
+        array &$fileCache,
+        array &$stats,
+    ): string {
+        if (! $downloadDocuments) {
+            $stats['files_skipped']++;
+
+            return $src;
+        }
+
+        $src = trim($src);
+
+        if ($src === '' || Str::startsWith($src, ['data:', 'blob:'])) {
+            $stats['files_skipped']++;
+
+            return $src;
+        }
+
+        $absolute = $this->absoluteUrl($src, $baseRoot);
+
+        if ($absolute === '') {
+            $stats['files_skipped']++;
+
+            return $src;
+        }
+
+        if (! $this->isInternalUrl($absolute, $baseHost) && ! $downloadExternalFiles) {
+            $stats['files_skipped']++;
+
+            return $absolute;
+        }
+
+        if (isset($fileCache[$absolute])) {
+            $this->trackStorageLink($stats, 'document_links', $fileCache[$absolute]);
+
+            return $fileCache[$absolute];
+        }
+
+        try {
+            $response = Http::retry(3, 250, throw: false)
+                ->timeout(30)
+                ->withUserAgent('Mozilla/5.0 (compatible; KubanomsContentImporter/1.0)')
+                ->get($absolute);
+
+            if ($response->failed()) {
+                $stats['files_failed']++;
+
+                return $absolute;
+            }
+
+            $contentType = (string) ($response->header('Content-Type') ?? '');
+            $contentDisposition = (string) ($response->header('Content-Disposition') ?? '');
+            $targetPath = $this->fileTargetPath($fileDirectory, $absolute, $contentType, $contentDisposition);
+            Storage::disk($disk)->put($targetPath, $response->body());
+            $url = Storage::disk($disk)->url($targetPath);
+            $urlPath = parse_url($url, PHP_URL_PATH) ?: $url;
+            $originalName = $this->originalNameFromUrl($absolute, $contentDisposition);
+
+            $fileCache[$absolute] = $urlPath;
+            $stats['files_downloaded']++;
+            $this->trackStorageLink($stats, 'document_links', $urlPath);
+            $this->upsertCmsFile(
+                path: $targetPath,
+                mimeType: $contentType,
+                extension: strtolower(pathinfo($targetPath, PATHINFO_EXTENSION)),
+                originalName: $originalName,
+            );
+
+            return $urlPath;
+        } catch (Throwable $exception) {
+            $stats['files_failed']++;
+
+            return $absolute;
+        }
     }
 
     private function normalizeExternalSrc(string $src, string $baseRoot): string
@@ -731,6 +959,8 @@ class KubanomsPageContentImporter
         }
 
         if (isset($imageCache[$absolute])) {
+            $this->trackStorageLink($stats, 'image_links', $imageCache[$absolute]);
+
             return $imageCache[$absolute];
         }
 
@@ -751,9 +981,17 @@ class KubanomsPageContentImporter
             Storage::disk($disk)->put($targetPath, $response->body());
             $url = Storage::disk($disk)->url($targetPath);
             $urlPath = parse_url($url, PHP_URL_PATH) ?: $url;
+            $originalName = $this->originalNameFromUrl($absolute);
 
             $imageCache[$absolute] = $urlPath;
             $stats['images_downloaded']++;
+            $this->trackStorageLink($stats, 'image_links', $urlPath);
+            $this->upsertCmsFile(
+                path: $targetPath,
+                mimeType: $contentType,
+                extension: strtolower(pathinfo($targetPath, PATHINFO_EXTENSION)),
+                originalName: $originalName,
+            );
 
             return $urlPath;
         } catch (Throwable $exception) {
@@ -785,6 +1023,36 @@ class KubanomsPageContentImporter
         return trim($imageDirectory, '/').'/'.$path;
     }
 
+    private function fileTargetPath(
+        string $fileDirectory,
+        string $absoluteUrl,
+        string $contentType,
+        string $contentDisposition,
+    ): string {
+        $path = parse_url($absoluteUrl, PHP_URL_PATH) ?? '';
+        $path = ltrim($path, '/');
+        $path = str_replace(['..', '\\'], ['', '/'], $path);
+
+        if ($path === '') {
+            $path = 'file';
+        }
+
+        $path = $this->appendQuerySuffix($path, (string) (parse_url($absoluteUrl, PHP_URL_QUERY) ?? ''));
+
+        $extension = pathinfo($path, PATHINFO_EXTENSION);
+
+        if ($extension === '') {
+            $extension = $this->extensionFromContentDisposition($contentDisposition)
+                ?? $this->extensionFromFileContentType($contentType);
+
+            if ($extension !== '') {
+                $path .= '.'.$extension;
+            }
+        }
+
+        return trim($fileDirectory, '/').'/'.$path;
+    }
+
     private function extensionFromContentType(string $contentType): string
     {
         $type = strtolower(trim(strtok($contentType, ';') ?: ''));
@@ -797,6 +1065,46 @@ class KubanomsPageContentImporter
             'image/svg+xml' => 'svg',
             default => 'bin',
         };
+    }
+
+    private function extensionFromFileContentType(string $contentType): string
+    {
+        $type = strtolower(trim(strtok($contentType, ';') ?: ''));
+
+        return match ($type) {
+            'application/pdf' => 'pdf',
+            'application/msword' => 'doc',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+            'application/vnd.ms-excel' => 'xls',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+            'application/vnd.ms-powerpoint' => 'ppt',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation' => 'pptx',
+            'text/plain' => 'txt',
+            'application/rtf', 'text/rtf' => 'rtf',
+            'application/zip' => 'zip',
+            'application/x-rar-compressed', 'application/vnd.rar' => 'rar',
+            'video/mp4' => 'mp4',
+            'video/webm' => 'webm',
+            'audio/mpeg' => 'mp3',
+            'audio/ogg' => 'ogg',
+            default => 'bin',
+        };
+    }
+
+    private function extensionFromContentDisposition(string $contentDisposition): ?string
+    {
+        if ($contentDisposition === '') {
+            return null;
+        }
+
+        if (! preg_match("/filename\\*?=(?:UTF-8''|)?[\"']?([^\"';]+)/i", $contentDisposition, $matches)) {
+            return null;
+        }
+
+        $filename = urldecode(trim($matches[1], "\"' "));
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+        return $extension !== '' ? $extension : null;
     }
 
     private function appendQuerySuffix(string $path, string $query): string
@@ -825,6 +1133,102 @@ class KubanomsPageContentImporter
         }
 
         return $directory.'/'.$targetFilename;
+    }
+
+    private function trackStorageLink(array &$stats, string $key, string $urlPath): void
+    {
+        if ($urlPath === '') {
+            return;
+        }
+
+        if (! isset($stats[$key]) || ! is_array($stats[$key])) {
+            $stats[$key] = [];
+        }
+
+        if (! in_array($urlPath, $stats[$key], true)) {
+            $stats[$key][] = $urlPath;
+        }
+    }
+
+    private function upsertCmsFile(
+        string $path,
+        string $mimeType,
+        string $extension,
+        string $originalName,
+    ): void {
+        if ($path === '') {
+            return;
+        }
+
+        $normalizedMime = trim($mimeType);
+
+        if ($normalizedMime === '') {
+            $normalizedMime = 'application/octet-stream';
+        }
+
+        $normalizedMime = substr($normalizedMime, 0, 25);
+        $normalizedExtension = trim(strtolower($extension));
+
+        if ($normalizedExtension === '') {
+            $normalizedExtension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        }
+
+        if ($normalizedExtension === '') {
+            $normalizedExtension = 'bin';
+        }
+
+        $normalizedName = trim($originalName);
+
+        if ($normalizedName === '') {
+            $normalizedName = basename($path);
+        }
+
+        $file = CmsFile::query()->where('path', $path)->first();
+
+        if ($file) {
+            $file->update([
+                'original_name' => $normalizedName,
+                'mime_type' => $normalizedMime,
+                'extension' => $normalizedExtension,
+                'description' => '',
+                'update_date' => now(),
+                'update_user' => self::SYSTEM_USER,
+            ]);
+
+            return;
+        }
+
+        CmsFile::query()->create([
+            'path' => $path,
+            'original_name' => $normalizedName,
+            'mime_type' => $normalizedMime,
+            'extension' => $normalizedExtension,
+            'description' => '',
+            'create_date' => now(),
+            'create_user' => self::SYSTEM_USER,
+            'update_date' => now(),
+            'update_user' => self::SYSTEM_USER,
+        ]);
+    }
+
+    private function originalNameFromUrl(string $absoluteUrl, string $contentDisposition = ''): string
+    {
+        $extensionFromDisposition = $this->extensionFromContentDisposition($contentDisposition);
+        $path = parse_url($absoluteUrl, PHP_URL_PATH) ?? '';
+        $name = basename($path);
+
+        if ($name === '' || $name === '/' || $name === '.') {
+            $name = 'file';
+        }
+
+        $name = urldecode($name);
+        $name = trim($name);
+
+        if ($extensionFromDisposition !== null && pathinfo($name, PATHINFO_EXTENSION) === '') {
+            $name .= '.'.$extensionFromDisposition;
+        }
+
+        return $name;
     }
 
     private function absoluteUrl(string $url, string $baseRoot): string

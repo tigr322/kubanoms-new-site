@@ -10,30 +10,6 @@ return new class extends Migration
     {
         Schema::disableForeignKeyConstraints();
 
-        // Idempotent cleanup only in local/testing to avoid dropping data in prod.
-        if (app()->environment(['local', 'testing'])) {
-            foreach ([
-                'orm_routes',
-                'oms_virtual_reception_treatment',
-                'oms_virtual_reception_attachment',
-                'oms_virtual_reception',
-                'oms_treatment',
-                'oms_smo',
-                'oms_notification_smo_output',
-                'oms_notification_smo_included',
-                'oms_notification_smo_change',
-                'oms_notification_mo_included',
-                'cms_setting',
-                'cms_menu_item',
-                'cms_page',
-                'cms_menu',
-                'cms_file',
-                'cms_file_folder',
-            ] as $table) {
-                Schema::dropIfExists($table);
-            }
-        }
-
         Schema::create('cms_file_folder', function (Blueprint $table): void {
             $table->increments('id');
             $table->string('name');

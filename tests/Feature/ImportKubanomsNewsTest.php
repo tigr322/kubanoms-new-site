@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Cms\CmsFile;
 use App\Models\Cms\CmsPage;
 use App\PageType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,6 +23,8 @@ class ImportKubanomsNewsTest extends TestCase
             'http://kubanoms.ru/newslist/item-2.html' => Http::response($this->detailHtmlTwo(), 200),
             'http://kubanoms.ru/img/news1.jpg' => Http::response('image-1', 200, ['Content-Type' => 'image/jpeg']),
             'http://kubanoms.ru/_events/preview2.jpg' => Http::response('image-2', 200, ['Content-Type' => 'image/jpeg']),
+            'http://kubanoms.ru/_files/doc.pdf' => Http::response('pdf-1', 200, ['Content-Type' => 'application/pdf']),
+            'https://files.example.org/docs/external-news.docx' => Http::response('docx-1', 200, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']),
         ]);
 
         $this->artisan('kubanoms:import-news', [
@@ -29,6 +32,7 @@ class ImportKubanomsNewsTest extends TestCase
             '--end' => 1,
             '--base-url' => 'http://kubanoms.ru',
             '--image-dir' => 'cms/news/images',
+            '--download-external-files' => true,
         ])->assertExitCode(0);
 
         $first = CmsPage::query()->where('url', '/newslist/item-1.html')->first();
@@ -37,7 +41,8 @@ class ImportKubanomsNewsTest extends TestCase
         $this->assertSame('news', $first->template);
         $this->assertSame('05.02.2026', $first->publication_date?->format('d.m.Y'));
         $this->assertStringContainsString('<a href="/page2.html">', (string) $first->content);
-        $this->assertStringContainsString('http://kubanoms.ru/_files/doc.pdf', (string) $first->content);
+        $this->assertStringContainsString('href="/storage/cms/news/files/_files/doc.pdf"', (string) $first->content);
+        $this->assertStringContainsString('href="/storage/cms/news/files/docs/external-news.docx"', (string) $first->content);
         $this->assertStringNotContainsString('class="print"', (string) $first->content);
         $this->assertContains('/storage/cms/news/images/img/news1.jpg', $first->images ?? []);
 
@@ -46,8 +51,18 @@ class ImportKubanomsNewsTest extends TestCase
         $this->assertSame('04.02.2026', $second->publication_date?->format('d.m.Y'));
         $this->assertContains('/storage/cms/news/images/_events/preview2.jpg', $second->images ?? []);
 
+        Storage::disk('public')->assertExists('cms/news/files/_files/doc.pdf');
+        Storage::disk('public')->assertExists('cms/news/files/docs/external-news.docx');
         Storage::disk('public')->assertExists('cms/news/images/img/news1.jpg');
         Storage::disk('public')->assertExists('cms/news/images/_events/preview2.jpg');
+        $this->assertDatabaseHas('cms_file', ['path' => 'cms/news/files/_files/doc.pdf']);
+        $this->assertDatabaseHas('cms_file', ['path' => 'cms/news/files/docs/external-news.docx']);
+        $this->assertDatabaseHas('cms_file', ['path' => 'cms/news/images/img/news1.jpg']);
+        $this->assertDatabaseHas('cms_file', ['path' => 'cms/news/images/_events/preview2.jpg']);
+
+        $file = CmsFile::query()->where('path', 'cms/news/files/_files/doc.pdf')->first();
+        $this->assertNotNull($file);
+        $this->assertSame('/storage/cms/news/files/_files/doc.pdf', $file->storage_url);
     }
 
     private function listHtml(): string
@@ -95,6 +110,7 @@ HTML;
                             <div class="date">05.02.2026</div>
                             <p>Body <a href="page2.html">Next</a></p>
                             <p><a href="_files/doc.pdf">Doc</a></p>
+                            <p><a href="https://files.example.org/docs/external-news.docx">External Doc</a></p>
                             <p><img src="img/news1.jpg"></p>
                             <form action="newslist/"></form>
                         </td>

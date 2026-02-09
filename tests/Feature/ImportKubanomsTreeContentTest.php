@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Cms\CmsFile;
 use App\Models\Cms\CmsPage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
@@ -23,6 +24,8 @@ class ImportKubanomsTreeContentTest extends TestCase
             'http://kubanoms.ru/c3.html' => Http::response($this->pageC3(), 200),
             'http://kubanoms.ru/img/a-content.jpg' => Http::response('img-a', 200, ['Content-Type' => 'image/jpeg']),
             'http://kubanoms.ru/img/b-content.jpg' => Http::response('img-b', 200, ['Content-Type' => 'image/jpeg']),
+            'http://kubanoms.ru/_files/doc.pdf' => Http::response('pdf-int-a', 200, ['Content-Type' => 'application/pdf']),
+            'https://files.example.org/guides/a-guide.pdf' => Http::response('pdf-ext-a', 200, ['Content-Type' => 'application/pdf']),
         ]);
 
         $sitemapPath = storage_path('framework/testing/kubanoms-sitemap-tree.html');
@@ -33,6 +36,7 @@ class ImportKubanomsTreeContentTest extends TestCase
             '--base-url' => 'http://kubanoms.ru',
             '--deep' => 3,
             '--image-dir' => 'cms/page/tree-images',
+            '--download-external-files' => true,
         ])->assertExitCode(0);
 
         $pageA = CmsPage::query()->where('url', '/a.html')->first();
@@ -56,12 +60,21 @@ class ImportKubanomsTreeContentTest extends TestCase
 
         $this->assertStringContainsString('<a href="/b2.html">', (string) $pageA->content);
         $this->assertStringNotContainsString('/outside.html', (string) $pageA->content);
+        $this->assertStringContainsString('href="/storage/cms/page/files/guides/a-guide.pdf"', (string) $pageA->content);
         $this->assertStringContainsString('src="/storage/cms/page/tree-images/img/a-content.jpg"', (string) $pageA->content);
         $this->assertStringContainsString('src="/storage/cms/page/tree-images/img/b-content.jpg"', (string) $pageB2->content);
 
+        Storage::disk('public')->assertExists('cms/page/files/guides/a-guide.pdf');
         Storage::disk('public')->assertExists('cms/page/tree-images/img/a-content.jpg');
         Storage::disk('public')->assertExists('cms/page/tree-images/img/b-content.jpg');
         Storage::disk('public')->assertMissing('cms/page/tree-images/img/outside.jpg');
+        $this->assertDatabaseHas('cms_file', ['path' => 'cms/page/files/guides/a-guide.pdf']);
+        $this->assertDatabaseHas('cms_file', ['path' => 'cms/page/tree-images/img/a-content.jpg']);
+        $this->assertDatabaseHas('cms_file', ['path' => 'cms/page/tree-images/img/b-content.jpg']);
+
+        $file = CmsFile::query()->where('path', 'cms/page/files/guides/a-guide.pdf')->first();
+        $this->assertNotNull($file);
+        $this->assertSame('/storage/cms/page/files/guides/a-guide.pdf', $file->storage_url);
 
         Http::assertNotSent(fn ($request): bool => str_contains($request->url(), '/outside.html'));
         Http::assertNotSent(fn ($request): bool => str_contains($request->url(), '/d4.html'));
@@ -112,6 +125,7 @@ HTML;
                         <h1>A title</h1>
                         <p>to b2 <a href="/b2.html">B2</a></p>
                         <p>external <a href="https://example.com/page">ext</a></p>
+                        <p>external file <a href="https://files.example.org/guides/a-guide.pdf">guide</a></p>
                         <p><a href="/_files/doc.pdf">doc</a></p>
                         <p><img src="/img/a-content.jpg"></p>
                     </td>

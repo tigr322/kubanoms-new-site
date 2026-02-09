@@ -18,6 +18,11 @@ class ImportKubanomsTreeContent extends Command
                             {--deep=3 : Глубина рекурсивного обхода (1..3)}
                             {--disk=public : Диск для сохранения изображений}
                             {--image-dir=cms/page/images : Подкаталог для изображений}
+                            {--file-dir=cms/page/files : Подкаталог для файлов документов}
+                            {--download-external-files : Скачивать внешние документы и подменять ссылки на локальные}
+                            {--without-images : Не скачивать изображения}
+                            {--without-documents : Не скачивать документы}
+                            {--show-links : Вывести storage-ссылки загруженных файлов}
                             {--limit= : Ограничить количество обрабатываемых страниц}
                             {--update-existing : Обновлять заголовки и метаданные}';
 
@@ -39,6 +44,11 @@ class ImportKubanomsTreeContent extends Command
         $deep = min(3, max(1, $deep));
         $disk = (string) ($this->option('disk') ?: 'public');
         $imageDir = (string) ($this->option('image-dir') ?: 'cms/page/images');
+        $fileDir = (string) ($this->option('file-dir') ?: 'cms/page/files');
+        $downloadExternalFiles = (bool) $this->option('download-external-files');
+        $downloadImages = ! (bool) $this->option('without-images');
+        $downloadDocuments = ! (bool) $this->option('without-documents');
+        $showLinks = (bool) $this->option('show-links');
         $limit = $this->option('limit');
         $limit = $limit !== null ? (int) $limit : null;
         $updateExisting = (bool) $this->option('update-existing');
@@ -49,6 +59,10 @@ class ImportKubanomsTreeContent extends Command
             maxDepth: $deep,
             disk: $disk,
             imageDirectory: $imageDir,
+            fileDirectory: $fileDir,
+            downloadExternalFiles: $downloadExternalFiles,
+            downloadDocuments: $downloadDocuments,
+            downloadImages: $downloadImages,
             updateExistingMeta: $updateExisting,
             limit: $limit,
         );
@@ -65,9 +79,30 @@ class ImportKubanomsTreeContent extends Command
         $this->line('Без контента: '.$stats['content_missing']);
         $this->line('Ссылок найдено в контенте: '.$stats['links_found']);
         $this->line('Ссылок добавлено в обход: '.$stats['links_queued']);
+        $this->line('Файлов скачано: '.$stats['files_downloaded']);
+        $this->line('Файлов пропущено: '.$stats['files_skipped']);
+        $this->line('Ошибок файлов: '.$stats['files_failed']);
+        $this->line('Storage-ссылок документов: '.count($stats['document_links'] ?? []));
         $this->line('Изображений скачано: '.$stats['images_downloaded']);
         $this->line('Изображений пропущено: '.$stats['images_skipped']);
         $this->line('Ошибок изображений: '.$stats['images_failed']);
+        $this->line('Storage-ссылок изображений: '.count($stats['image_links'] ?? []));
+
+        if ($showLinks) {
+            $this->line('');
+            $this->line('Документы:');
+
+            foreach ($stats['document_links'] ?? [] as $link) {
+                $this->line($link);
+            }
+
+            $this->line('');
+            $this->line('Изображения:');
+
+            foreach ($stats['image_links'] ?? [] as $link) {
+                $this->line($link);
+            }
+        }
 
         return self::SUCCESS;
     }

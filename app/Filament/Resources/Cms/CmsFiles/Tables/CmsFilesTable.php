@@ -21,6 +21,11 @@ class CmsFilesTable
                     ->searchable(),
                 TextColumn::make('path')
                     ->searchable(),
+                TextColumn::make('storage_url')
+                    ->label('Storage ссылка')
+                    ->copyable()
+                    ->copyMessage('Ссылка скопирована')
+                    ->toggleable(),
                 TextColumn::make('mime_type')
                     ->searchable(),
                 TextColumn::make('extension')

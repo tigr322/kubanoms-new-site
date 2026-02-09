@@ -10,48 +10,6 @@ return new class extends Migration
     {
         Schema::disableForeignKeyConstraints();
 
-        // Clean up only in local/testing to avoid dropping data in prod.
-        if (app()->environment(['local', 'testing'])) {
-            foreach ([
-                'oms_vote_ans',
-                'oms_vote_quest',
-                'oms_srchwords',
-                'oms_srchpathes',
-                'oms_srchparts',
-                'oms_srchobj',
-                'oms_srchconjunctives',
-                'oms_smo_smo',
-                'oms_smo_rating',
-                'oms_smo_info',
-                'oms_setup',
-                'oms_propstorage',
-                'oms_navigation',
-                'oms_media',
-                'oms_imagegroupitems',
-                'oms_imagegroups',
-                'oms_guestbook',
-                'oms_field_types',
-                'oms_field_access',
-                'oms_faq',
-                'oms_event_items',
-                'oms_event_cat',
-                'oms_ctl_catalog1',
-                'oms_ctltree',
-                'oms_ctlcolumns',
-                'oms_basket',
-                'oms_anketa_resp',
-                'oms_anketa_ans',
-                'oms_anketa_quest',
-                'oms_anketa',
-                'oms_ad_target',
-                'oms_ad_stat',
-                'oms_ad_banners',
-                'oms_ad_groups',
-            ] as $table) {
-                Schema::dropIfExists($table);
-            }
-        }
-
         Schema::create('oms_ad_groups', function (Blueprint $table): void {
             $table->increments('id')->unsigned();
             $table->enum('type', ['picture', 'text', 'combo'])->default('picture');
