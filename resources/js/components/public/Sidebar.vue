@@ -14,12 +14,31 @@ const props = defineProps<{
 }>();
 
 const openItems = ref<number[]>([]);
+const hoveredItemId = ref<number | null>(null);
+
+const isOpen = (id: number): boolean => {
+    return openItems.value.includes(id) || hoveredItemId.value === id;
+};
 
 const toggle = (id: number): void => {
     if (openItems.value.includes(id)) {
         openItems.value = openItems.value.filter((itemId) => itemId !== id);
     } else {
         openItems.value = [...openItems.value, id];
+    }
+};
+
+const handleMouseEnter = (item: MenuItem): void => {
+    if (!item.children?.length) {
+        return;
+    }
+
+    hoveredItemId.value = item.id;
+};
+
+const handleMouseLeave = (item: MenuItem): void => {
+    if (hoveredItemId.value === item.id) {
+        hoveredItemId.value = null;
     }
 };
 
@@ -36,7 +55,13 @@ const handleItemClick = (event: MouseEvent, item: MenuItem): void => {
 
 <template>
     <ul class="sidebar">
-        <li v-for="item in props.items" :key="item.id" :class="{ active: openItems.includes(item.id) }">
+        <li
+            v-for="item in props.items"
+            :key="item.id"
+            :class="{ active: isOpen(item.id) }"
+            @mouseenter="handleMouseEnter(item)"
+            @mouseleave="handleMouseLeave(item)"
+        >
             <Link
                 v-if="item.url"
                 :href="item.url"
