@@ -32,14 +32,13 @@ const activeTab = ref<'news' | 'documents'>('news');
                     >
                         <div
                             v-if="item.image"
-                            class="news-thumb"
+                            class="item-image"
                             style="
                                 flex: 0 0 auto;
                                 overflow: hidden;
                                 display: flex;
                                 align-items: center;
                                 justify-content: center;
-                                background: #f5f5f5;
                             "
                         >
                             <img :src="item.image" :alt="item.title" loading="lazy" style="max-width: 100%; height: auto;" />
