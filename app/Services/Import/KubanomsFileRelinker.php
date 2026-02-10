@@ -320,6 +320,13 @@ class KubanomsFileRelinker
 
             $contentType = (string) ($response->header('Content-Type') ?? '');
             $contentDisposition = (string) ($response->header('Content-Disposition') ?? '');
+
+            if ($this->isHtmlResponse($contentType, $contentDisposition, $response->body())) {
+                $stats['files_skipped']++;
+
+                return $href;
+            }
+
             $targetPath = $this->fileTargetPath($fileDirectory, $absolute, $contentType, $contentDisposition);
             Storage::disk($disk)->put($targetPath, $response->body());
 
@@ -344,6 +351,29 @@ class KubanomsFileRelinker
 
             return $href;
         }
+    }
+
+    private function isHtmlResponse(string $contentType, string $contentDisposition, string $body): bool
+    {
+        $normalizedContentType = strtolower(trim(strtok($contentType, ';') ?: ''));
+        $normalizedDisposition = strtolower($contentDisposition);
+        $hasAttachmentDisposition = Str::contains($normalizedDisposition, 'attachment');
+
+        if ($hasAttachmentDisposition) {
+            return false;
+        }
+
+        if (in_array($normalizedContentType, ['text/html', 'application/xhtml+xml'], true)) {
+            return true;
+        }
+
+        $trimmed = ltrim($body);
+        $startsWithHtml = Str::startsWith(
+            strtolower(substr($trimmed, 0, 80)),
+            ['<!doctype html', '<html', '<head', '<body'],
+        );
+
+        return $normalizedContentType === '' && $startsWithHtml;
     }
 
     private function fileTargetPath(
