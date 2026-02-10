@@ -51,6 +51,7 @@ class KubanomsFileRelinker
      *     files_downloaded: int,
      *     files_failed: int,
      *     files_skipped: int,
+     *     storage_links_reported: int,
      *     document_links: array<int, string>
      * }
      */
@@ -60,6 +61,8 @@ class KubanomsFileRelinker
         string $fileDirectory = 'cms/page/files',
         ?int $limit = null,
         array $pageIds = [],
+        bool $collectLinks = true,
+        ?callable $onStorageLink = null,
     ): array {
         $baseRoot = $this->baseRoot($baseUrl);
         $baseHost = parse_url($baseRoot, PHP_URL_HOST) ?? '';
@@ -77,46 +80,74 @@ class KubanomsFileRelinker
             'files_downloaded' => 0,
             'files_failed' => 0,
             'files_skipped' => 0,
+            'storage_links_reported' => 0,
             'document_links' => [],
         ];
 
-        $query = $this->pagesQuery($pageIds);
+        $query = $this->pagesQuery($pageIds)->select(['id', 'content']);
         $stats['pages_total'] = (clone $query)->count();
 
         $processed = 0;
         $fileCache = [];
         $fileDirectory = trim($fileDirectory, '/');
+        $gcInterval = 50;
 
-        foreach ($query->orderBy('id')->cursor() as $page) {
-            if ($limit !== null && $processed >= $limit) {
-                break;
+        $query->orderBy('id')->chunkById(100, function ($pages) use (
+            &$processed,
+            $limit,
+            &$stats,
+            $baseRoot,
+            $baseHost,
+            $disk,
+            $fileDirectory,
+            &$fileCache,
+            $collectLinks,
+            $onStorageLink,
+            $gcInterval,
+        ): bool {
+            foreach ($pages as $page) {
+                if ($limit !== null && $processed >= $limit) {
+                    return false;
+                }
+
+                $processed++;
+                $stats['pages_processed']++;
+
+                $result = $this->relinkPageContent(
+                    html: (string) $page->content,
+                    baseRoot: $baseRoot,
+                    baseHost: $baseHost,
+                    disk: $disk,
+                    fileDirectory: $fileDirectory,
+                    fileCache: $fileCache,
+                    stats: $stats,
+                    collectLinks: $collectLinks,
+                    onStorageLink: $onStorageLink,
+                );
+
+                if ($result['changed']) {
+                    CmsPage::query()->whereKey($page->id)->update([
+                        'content' => $result['content'],
+                        'update_date' => now(),
+                        'update_user' => self::SYSTEM_USER,
+                    ]);
+
+                    $stats['pages_updated']++;
+                }
+
+                if (count($fileCache) > 5000) {
+                    $fileCache = array_slice($fileCache, -1000, null, true);
+                }
+
+                if ($processed % $gcInterval === 0) {
+                    gc_collect_cycles();
+                }
             }
 
-            $processed++;
-            $stats['pages_processed']++;
+            return true;
+        }, 'id');
 
-            $result = $this->relinkPageContent(
-                html: (string) $page->content,
-                baseRoot: $baseRoot,
-                baseHost: $baseHost,
-                disk: $disk,
-                fileDirectory: $fileDirectory,
-                fileCache: $fileCache,
-                stats: $stats,
-            );
-
-            if (! $result['changed']) {
-                continue;
-            }
-
-            $page->update([
-                'content' => $result['content'],
-                'update_date' => now(),
-                'update_user' => self::SYSTEM_USER,
-            ]);
-
-            $stats['pages_updated']++;
-        }
+        gc_collect_cycles();
 
         return $stats;
     }
@@ -148,6 +179,7 @@ class KubanomsFileRelinker
      *     files_downloaded: int,
      *     files_failed: int,
      *     files_skipped: int,
+     *     storage_links_reported: int,
      *     document_links: array<int, string>
      * }  $stats
      * @return array{changed: bool, content: string}
@@ -160,6 +192,8 @@ class KubanomsFileRelinker
         string $fileDirectory,
         array &$fileCache,
         array &$stats,
+        bool $collectLinks,
+        ?callable $onStorageLink,
     ): array {
         if (trim($html) === '') {
             return ['changed' => false, 'content' => $html];
@@ -176,6 +210,8 @@ class KubanomsFileRelinker
         $rootNode = $xpath->query('//*[@id="__content_root"]')?->item(0);
 
         if (! $rootNode instanceof DOMElement) {
+            unset($xpath, $rootNode, $dom);
+
             return ['changed' => false, 'content' => $html];
         }
 
@@ -202,6 +238,8 @@ class KubanomsFileRelinker
                 fileDirectory: $fileDirectory,
                 fileCache: $fileCache,
                 stats: $stats,
+                collectLinks: $collectLinks,
+                onStorageLink: $onStorageLink,
             );
 
             if ($normalized === $href) {
@@ -214,10 +252,15 @@ class KubanomsFileRelinker
         }
 
         if (! $changed) {
+            unset($xpath, $rootNode, $dom);
+
             return ['changed' => false, 'content' => $html];
         }
 
-        return ['changed' => true, 'content' => trim($this->innerHtml($rootNode))];
+        $content = trim($this->innerHtml($rootNode));
+        unset($xpath, $rootNode, $dom);
+
+        return ['changed' => true, 'content' => $content];
     }
 
     /**
@@ -231,6 +274,7 @@ class KubanomsFileRelinker
      *     files_downloaded: int,
      *     files_failed: int,
      *     files_skipped: int,
+     *     storage_links_reported: int,
      *     document_links: array<int, string>
      * }  $stats
      */
@@ -242,6 +286,8 @@ class KubanomsFileRelinker
         string $fileDirectory,
         array &$fileCache,
         array &$stats,
+        bool $collectLinks,
+        ?callable $onStorageLink,
     ): string {
         if ($href === '' || Str::startsWith($href, ['#', 'mailto:', 'tel:', 'javascript:', 'data:', 'blob:'])) {
             return $href;
@@ -274,6 +320,8 @@ class KubanomsFileRelinker
             fileDirectory: $fileDirectory,
             fileCache: $fileCache,
             stats: $stats,
+            collectLinks: $collectLinks,
+            onStorageLink: $onStorageLink,
         );
     }
 
@@ -288,6 +336,7 @@ class KubanomsFileRelinker
      *     files_downloaded: int,
      *     files_failed: int,
      *     files_skipped: int,
+     *     storage_links_reported: int,
      *     document_links: array<int, string>
      * }  $stats
      */
@@ -298,10 +347,12 @@ class KubanomsFileRelinker
         string $fileDirectory,
         array &$fileCache,
         array &$stats,
+        bool $collectLinks,
+        ?callable $onStorageLink,
     ): string {
         if (isset($fileCache[$absolute])) {
             $stats['files_skipped']++;
-            $this->trackStorageLink($stats, $fileCache[$absolute]);
+            $this->trackStorageLink($stats, $fileCache[$absolute], $collectLinks, $onStorageLink);
 
             return $fileCache[$absolute];
         }
@@ -336,7 +387,7 @@ class KubanomsFileRelinker
 
             $fileCache[$absolute] = $urlPath;
             $stats['files_downloaded']++;
-            $this->trackStorageLink($stats, $urlPath);
+            $this->trackStorageLink($stats, $urlPath, $collectLinks, $onStorageLink);
 
             $this->upsertCmsFile(
                 path: $targetPath,
@@ -565,16 +616,27 @@ class KubanomsFileRelinker
      *     files_downloaded: int,
      *     files_failed: int,
      *     files_skipped: int,
+     *     storage_links_reported: int,
      *     document_links: array<int, string>
      * }  $stats
      */
-    private function trackStorageLink(array &$stats, string $urlPath): void
-    {
+    private function trackStorageLink(
+        array &$stats,
+        string $urlPath,
+        bool $collectLinks,
+        ?callable $onStorageLink,
+    ): void {
         if ($urlPath === '') {
             return;
         }
 
-        if (! in_array($urlPath, $stats['document_links'], true)) {
+        $stats['storage_links_reported']++;
+
+        if ($onStorageLink !== null) {
+            $onStorageLink($urlPath);
+        }
+
+        if ($collectLinks && ! in_array($urlPath, $stats['document_links'], true)) {
             $stats['document_links'][] = $urlPath;
         }
     }

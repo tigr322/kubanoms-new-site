@@ -43,12 +43,24 @@ class RelinkKubanomsFileLinks extends Command
         )));
         $showLinks = (bool) $this->option('show-links');
 
+        if ($showLinks) {
+            $this->line('Файлы:');
+        }
+
+        $onStorageLink = $showLinks
+            ? function (string $urlPath): void {
+                $this->line($urlPath);
+            }
+        : null;
+
         $stats = $relinker->relink(
             baseUrl: $baseUrl,
             disk: $disk,
             fileDirectory: $fileDirectory,
             limit: $limit,
             pageIds: $pageIds,
+            collectLinks: false,
+            onStorageLink: $onStorageLink,
         );
 
         $this->info('Обновление ссылок завершено.');
@@ -60,16 +72,7 @@ class RelinkKubanomsFileLinks extends Command
         $this->line('Файлов скачано: '.$stats['files_downloaded']);
         $this->line('Файлов пропущено: '.$stats['files_skipped']);
         $this->line('Ошибок файлов: '.$stats['files_failed']);
-        $this->line('Storage-ссылок: '.count($stats['document_links'] ?? []));
-
-        if ($showLinks) {
-            $this->line('');
-            $this->line('Файлы:');
-
-            foreach ($stats['document_links'] ?? [] as $link) {
-                $this->line($link);
-            }
-        }
+        $this->line('Storage-ссылок: '.$stats['storage_links_reported']);
 
         return self::SUCCESS;
     }
