@@ -20,6 +20,8 @@ class BannerSettingHelperTest extends TestCase
                 'image' => 'cms/banners/image.png',
                 'url' => 'https://example.com',
                 'alt' => 'Баннер',
+                'width' => '172px',
+                'height' => 181,
                 'open_in_new_tab' => true,
             ],
         ]);
@@ -30,6 +32,7 @@ class BannerSettingHelperTest extends TestCase
         $this->assertStringContainsString('<a href="https://example.com"', $html);
         $this->assertStringContainsString('<img src="/storage/cms/banners/image.png"', $html);
         $this->assertStringContainsString('alt="Баннер"', $html);
+        $this->assertStringContainsString('style="width: 172px; height: 181px;"', $html);
     }
 
     public function test_renders_html_banner_snippet(): void
@@ -53,7 +56,7 @@ class BannerSettingHelperTest extends TestCase
 
     public function test_decodes_html_content_to_banner_items(): void
     {
-        $content = '<a href="https://example.com" target="_self"><img src="/storage/cms/banners/image.png" alt="Баннер" /></a>';
+        $content = '<a href="https://example.com" target="_self"><img src="/storage/cms/banners/image.png" alt="Баннер" style="HEIGHT: 181px; WIDTH: 172px" /></a>';
 
         $banners = BannerSettingHelper::decodeContent($content);
 
@@ -61,6 +64,8 @@ class BannerSettingHelperTest extends TestCase
         $this->assertSame('image', $banners[0]['type']);
         $this->assertSame('cms/banners/image.png', $banners[0]['image']);
         $this->assertSame('https://example.com', $banners[0]['url']);
+        $this->assertSame('172px', $banners[0]['width']);
+        $this->assertSame('181px', $banners[0]['height']);
         $this->assertFalse($banners[0]['open_in_new_tab']);
     }
 }

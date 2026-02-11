@@ -39,7 +39,8 @@ class BannerSettingHelper
 
                 $src = self::toPublicUrl($item['image']);
                 $alt = e($item['alt'] ?? 'Баннер');
-                $img = '<img src="'.$src.'" alt="'.$alt.'" />';
+                $style = self::buildImageStyle($item);
+                $img = '<img src="'.$src.'" alt="'.$alt.'"'.$style.' />';
 
                 if (! filled($item['url'] ?? null)) {
                     return $img;
@@ -94,6 +95,8 @@ class BannerSettingHelper
                     'image' => $relative ?? $image,
                     'url' => filled($item['url'] ?? null) ? $item['url'] : null,
                     'alt' => filled($item['alt'] ?? null) ? $item['alt'] : null,
+                    'width' => self::normalizeDimension($item['width'] ?? null),
+                    'height' => self::normalizeDimension($item['height'] ?? null),
                     'open_in_new_tab' => $item['open_in_new_tab'] ?? true,
                 ];
             })
@@ -189,6 +192,8 @@ class BannerSettingHelper
                     ? ($image->parentNode->getAttribute('href') ?: null)
                     : null,
                 'alt' => $image->getAttribute('alt') ?: null,
+                'width' => self::extractDimension($image, 'width'),
+                'height' => self::extractDimension($image, 'height'),
                 'open_in_new_tab' => $image->parentNode instanceof DOMElement
                     && $image->parentNode->tagName === 'a'
                     && $image->parentNode->getAttribute('target') !== '_self',
@@ -262,5 +267,68 @@ class BannerSettingHelper
         json_decode($content);
 
         return json_last_error() === JSON_ERROR_NONE;
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private static function buildImageStyle(array $item): string
+    {
+        $styles = [];
+
+        $width = self::normalizeDimension($item['width'] ?? null);
+        $height = self::normalizeDimension($item['height'] ?? null);
+
+        if ($width) {
+            $styles[] = 'width: '.$width;
+        }
+
+        if ($height) {
+            $styles[] = 'height: '.$height;
+        }
+
+        if ($styles === []) {
+            return '';
+        }
+
+        return ' style="'.e(implode('; ', $styles).';').'"';
+    }
+
+    private static function normalizeDimension(mixed $value): ?string
+    {
+        if (is_int($value) || is_float($value)) {
+            return $value.'px';
+        }
+
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $dimension = trim($value);
+
+        if ($dimension === '') {
+            return null;
+        }
+
+        if (preg_match('/^\d+(\.\d+)?$/', $dimension)) {
+            return $dimension.'px';
+        }
+
+        if (preg_match('/^\d+(\.\d+)?(px|%|em|rem|vh|vw)$/i', $dimension)) {
+            return $dimension;
+        }
+
+        return null;
+    }
+
+    private static function extractDimension(DOMElement $image, string $property): ?string
+    {
+        $style = (string) $image->getAttribute('style');
+
+        if ($style !== '' && preg_match('/(?:^|;)\s*'.preg_quote($property, '/').'\s*:\s*([^;]+)/i', $style, $matches)) {
+            return self::normalizeDimension($matches[1]);
+        }
+
+        return self::normalizeDimension($image->getAttribute($property) ?: null);
     }
 }

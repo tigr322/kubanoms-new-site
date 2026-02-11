@@ -67,6 +67,14 @@ class CmsSettingForm
                         TextInput::make('alt')
                             ->label('Alt-текст')
                             ->visible(fn (Get $get): bool => ($get('type') ?? 'image') === 'image'),
+                        TextInput::make('width')
+                            ->label('Ширина')
+                            ->helperText('Например: 172px или 50%')
+                            ->visible(fn (Get $get): bool => ($get('type') ?? 'image') === 'image'),
+                        TextInput::make('height')
+                            ->label('Высота')
+                            ->helperText('Например: 181px или 50%')
+                            ->visible(fn (Get $get): bool => ($get('type') ?? 'image') === 'image'),
                         Toggle::make('open_in_new_tab')
                             ->label('Открывать в новом окне')
                             ->default(true)
