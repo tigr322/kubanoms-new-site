@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import { index as newsIndex } from '@/routes/news';
 import type { NewsListItem } from '@/types';
 
 const props = defineProps<{
@@ -9,6 +10,7 @@ const props = defineProps<{
 }>();
 
 const activeTab = ref<'news' | 'documents'>('news');
+const newsArchiveUrl = `${newsIndex.url().replace(/\/$/, '')}/`;
 </script>
 
 <template>
@@ -49,6 +51,9 @@ const activeTab = ref<'news' | 'documents'>('news');
                                 <Link :href="item.url">{{ item.title }}</Link>
                             </div>
                         </div>
+                    </div>
+                    <div class="item-archive">
+                        <Link :href="newsArchiveUrl">АРХИВ НОВОСТЕЙ</Link>
                     </div>
                 </div>
             </div>
