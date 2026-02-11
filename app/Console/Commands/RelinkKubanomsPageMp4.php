@@ -18,7 +18,8 @@ class RelinkKubanomsPageMp4 extends Command
                             {--base-url=http://kubanoms.ru : Базовый URL источника}
                             {--disk=public : Диск для сохранения}
                             {--file-dir=cms/page/videos : Подкаталог для mp4}
-                            {--show-links : Вывести storage-ссылки}';
+                            {--show-links : Вывести storage-ссылки}
+                            {--show-failed : Вывести mp4-ссылки, которые не удалось заменить}';
 
     /**
      * The console command description.
@@ -37,6 +38,7 @@ class RelinkKubanomsPageMp4 extends Command
         $disk = (string) ($this->option('disk') ?: 'public');
         $fileDirectory = (string) ($this->option('file-dir') ?: 'cms/page/videos');
         $showLinks = (bool) $this->option('show-links');
+        $showFailed = (bool) $this->option('show-failed');
 
         $onStorageLink = $showLinks
             ? function (string $urlPath): void {
@@ -71,6 +73,15 @@ class RelinkKubanomsPageMp4 extends Command
         $this->line('Files skipped: '.$stats['files_skipped']);
         $this->line('Files failed: '.$stats['files_failed']);
         $this->line('Page updated: '.$stats['page_updated']);
+
+        if ($showFailed && ! empty($stats['failed_links'])) {
+            $this->newLine();
+            $this->line('Необработанные mp4 ссылки:');
+
+            foreach ($stats['failed_links'] as $item) {
+                $this->line(($item['url'] ?? '').' | '.($item['reason'] ?? 'unknown error'));
+            }
+        }
 
         return self::SUCCESS;
     }

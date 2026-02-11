@@ -27,6 +27,7 @@ class KubanomsPageMp4Relinker
      *     files_failed: int,
      *     files_skipped: int,
      *     page_updated: int,
+     *     failed_links: array<int, array{url: string, reason: string}>,
      *     storage_links: array<int, string>
      * }
      */
@@ -60,6 +61,7 @@ class KubanomsPageMp4Relinker
             'files_failed' => 0,
             'files_skipped' => 0,
             'page_updated' => 0,
+            'failed_links' => [],
             'storage_links' => [],
         ];
 
@@ -124,6 +126,7 @@ class KubanomsPageMp4Relinker
      *     files_failed: int,
      *     files_skipped: int,
      *     page_updated: int,
+     *     failed_links: array<int, array{url: string, reason: string}>,
      *     storage_links: array<int, string>
      * }  $stats
      * @return array{changed: bool, content: string}
@@ -238,6 +241,7 @@ class KubanomsPageMp4Relinker
      *     files_failed: int,
      *     files_skipped: int,
      *     page_updated: int,
+     *     failed_links: array<int, array{url: string, reason: string}>,
      *     storage_links: array<int, string>
      * }  $stats
      */
@@ -279,6 +283,7 @@ class KubanomsPageMp4Relinker
         return $this->downloadFile(
             originalValue: $value,
             absolute: $absolute,
+            baseRoot: $baseRoot,
             disk: $disk,
             fileDirectory: $fileDirectory,
             fileCache: $fileCache,
@@ -298,12 +303,14 @@ class KubanomsPageMp4Relinker
      *     files_failed: int,
      *     files_skipped: int,
      *     page_updated: int,
+     *     failed_links: array<int, array{url: string, reason: string}>,
      *     storage_links: array<int, string>
      * }  $stats
      */
     private function downloadFile(
         string $originalValue,
         string $absolute,
+        string $baseRoot,
         string $disk,
         string $fileDirectory,
         array &$fileCache,
@@ -329,14 +336,32 @@ class KubanomsPageMp4Relinker
             return $existingStoragePath;
         }
 
+        $tempFile = tempnam(sys_get_temp_dir(), 'kubanoms_mp4_');
+
+        if (! is_string($tempFile) || $tempFile === '') {
+            $stats['files_failed']++;
+            $this->trackFailure($stats, $absolute, 'Не удалось создать временный файл');
+
+            return $originalValue;
+        }
+
         try {
             $response = Http::retry(3, 250, throw: false)
-                ->timeout(30)
+                ->timeout(180)
+                ->connectTimeout(15)
                 ->withUserAgent('Mozilla/5.0 (compatible; KubanomsPageMp4Relinker/1.0)')
+                ->withHeaders([
+                    'Accept' => '*/*',
+                    'Referer' => rtrim($baseRoot, '/').$stats['page_url'],
+                ])
+                ->withOptions([
+                    'sink' => $tempFile,
+                ])
                 ->get($absolute);
 
             if ($response->failed()) {
                 $stats['files_failed']++;
+                $this->trackFailure($stats, $absolute, 'HTTP '.$response->status());
 
                 return $originalValue;
             }
@@ -344,14 +369,34 @@ class KubanomsPageMp4Relinker
             $contentType = (string) ($response->header('Content-Type') ?? '');
             $contentDisposition = (string) ($response->header('Content-Disposition') ?? '');
 
-            if ($this->isHtmlResponse($contentType, $contentDisposition, $response->body())) {
+            if ($this->isHtmlResponse($contentType, $contentDisposition, $this->readFileSnippet($tempFile))) {
                 $stats['files_skipped']++;
 
                 return $originalValue;
             }
 
             $targetPath = $this->fileTargetPath($fileDirectory, $absolute, $contentType, $contentDisposition);
-            Storage::disk($disk)->put($targetPath, $response->body());
+            $stream = fopen($tempFile, 'rb');
+
+            if (! is_resource($stream)) {
+                $stats['files_failed']++;
+                $this->trackFailure($stats, $absolute, 'Не удалось открыть временный файл');
+
+                return $originalValue;
+            }
+
+            try {
+                $written = Storage::disk($disk)->writeStream($targetPath, $stream);
+            } finally {
+                fclose($stream);
+            }
+
+            if ($written === false) {
+                $stats['files_failed']++;
+                $this->trackFailure($stats, $absolute, 'Не удалось записать файл в storage');
+
+                return $originalValue;
+            }
 
             $url = Storage::disk($disk)->url($targetPath);
             $urlPath = parse_url($url, PHP_URL_PATH) ?: $url;
@@ -371,8 +416,13 @@ class KubanomsPageMp4Relinker
             return $urlPath;
         } catch (Throwable $exception) {
             $stats['files_failed']++;
+            $this->trackFailure($stats, $absolute, $exception::class.': '.$exception->getMessage());
 
             return $originalValue;
+        } finally {
+            if (is_file($tempFile)) {
+                @unlink($tempFile);
+            }
         }
     }
 
@@ -609,6 +659,7 @@ class KubanomsPageMp4Relinker
      *     files_failed: int,
      *     files_skipped: int,
      *     page_updated: int,
+     *     failed_links: array<int, array{url: string, reason: string}>,
      *     storage_links: array<int, string>
      * }  $stats
      */
@@ -629,6 +680,58 @@ class KubanomsPageMp4Relinker
         if ($collectLinks && ! in_array($urlPath, $stats['storage_links'], true)) {
             $stats['storage_links'][] = $urlPath;
         }
+    }
+
+    /**
+     * @param  array{
+     *     page_url: string,
+     *     links_checked: int,
+     *     links_replaced: int,
+     *     files_downloaded: int,
+     *     files_failed: int,
+     *     files_skipped: int,
+     *     page_updated: int,
+     *     failed_links: array<int, array{url: string, reason: string}>,
+     *     storage_links: array<int, string>
+     * }  $stats
+     */
+    private function trackFailure(array &$stats, string $url, string $reason): void
+    {
+        $normalizedUrl = trim($url);
+
+        if ($normalizedUrl === '') {
+            return;
+        }
+
+        $stats['failed_links'][] = [
+            'url' => $normalizedUrl,
+            'reason' => Str::limit(trim($reason), 300, '...'),
+        ];
+    }
+
+    private function readFileSnippet(string $path, int $length = 512): string
+    {
+        if (! is_file($path)) {
+            return '';
+        }
+
+        $handle = fopen($path, 'rb');
+
+        if (! is_resource($handle)) {
+            return '';
+        }
+
+        try {
+            $content = fread($handle, $length);
+        } finally {
+            fclose($handle);
+        }
+
+        if (! is_string($content)) {
+            return '';
+        }
+
+        return $content;
     }
 
     private function absoluteUrl(string $url, string $baseRoot): string

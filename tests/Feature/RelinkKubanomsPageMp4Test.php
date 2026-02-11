@@ -160,4 +160,40 @@ HTML,
         $this->assertStringContainsString('src="/storage/cms/page/videos/x.mp4"', (string) $page->content);
         Storage::disk('public')->assertExists('cms/page/videos/x.mp4');
     }
+
+    public function test_it_shows_failed_mp4_links_when_requested(): void
+    {
+        Storage::fake('public');
+        Http::fake([
+            'http://kubanoms.ru/videos/missing.mp4' => Http::response('', 404),
+        ]);
+
+        $page = CmsPage::query()->create([
+            'title' => 'Видео страница',
+            'title_short' => 'Видео страница',
+            'content' => <<<'HTML'
+<video controls src="http://kubanoms.ru/videos/missing.mp4"></video>
+HTML,
+            'page_status' => PageStatus::PUBLISHED->value,
+            'page_of_type' => PageType::PAGE->value,
+            'template' => 'default',
+            'url' => '/page21913.html',
+            'create_date' => now(),
+            'create_user' => 'test',
+            'update_date' => now(),
+            'update_user' => 'test',
+        ]);
+
+        $this->artisan('kubanoms:relink-page-mp4', [
+            '--page-url' => '/page21913.html',
+            '--base-url' => 'http://kubanoms.ru',
+            '--show-failed' => true,
+        ])
+            ->expectsOutputToContain('Необработанные mp4 ссылки:')
+            ->expectsOutputToContain('http://kubanoms.ru/videos/missing.mp4 | HTTP 404')
+            ->assertExitCode(0);
+
+        $page->refresh();
+        $this->assertStringContainsString('http://kubanoms.ru/videos/missing.mp4', (string) $page->content);
+    }
 }
