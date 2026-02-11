@@ -33,6 +33,9 @@ const props = withDefaults(
             footer_left?: string | null;
             footer_center?: string | null;
             footer_right?: string | null;
+            footer_copyright?: string | null;
+            footer_counters?: string | null;
+            footer_developer?: string | null;
         };
     }>(),
     {
@@ -44,6 +47,14 @@ const props = withDefaults(
 );
 
 const isSpecial = computed(() => Number(props.special) === 1);
+const footerCopyright = computed(
+    () => props.settings?.footer_copyright ?? '© 2009-2022. ТФОМС КК. Все права защищены.',
+);
+const footerCounters = computed(() => props.settings?.footer_counters ?? '');
+const footerDeveloper = computed(
+    () => props.settings?.footer_developer
+        ?? '<a href="/rss.xml">RSS-канал</a> <a href="https://mirazher.ru/ru" target="_blank" rel="noopener">За создание сайта - </a>: <a href="https://mirazher.ru/ru" target="_blank" rel="noopener">Mirazher</a>',
+);
 const page = usePage();
 const mainContentRef = ref<HTMLElement | null>(null);
 const hideRightSidebar = ref(false);
@@ -170,7 +181,7 @@ onBeforeUnmount(() => {
         <link v-if="isSpecial" rel="stylesheet" href="/legacy/bw.css" />
     </Head>
     <AccessibilityPanel />
-    <div class="wrapper">
+    <div id="top" class="wrapper">
         <div class="top">
             <div class="container">
                 <div class="header">
@@ -260,31 +271,41 @@ onBeforeUnmount(() => {
         </div>
         <div class="bottom-bar">
             <div class="container">
-                <div class="footer">
-                    <div class="column contact">
-                        <div v-html="settings?.footer_left ?? ''" />
-                    </div>
-                    <div class="column section-site">
-                        <div v-html="settings?.footer_center ?? ''" />
-                    </div>
-                    <div class="column additionally">
-                        <div v-html="settings?.footer_right ?? ''" />
-                        <p class="totop">
-                            <a href="#" class="scroll-top"><img src="/legacy/image/top-button.gif" alt="Вверх" /></a>
-                        </p>
-                    </div>
-                    <div class="clearfix" />
-                    <div class="copyright-wrapper">
-                        <div class="copyright">© 2009-{{ new Date().getFullYear() }}. ТФОМС КК. Все права защищены.</div>
-                        <div class="developer">
-                            <a href="#">Разработка сайта</a>: <a href="http://salich-dev.ru">Саленко А.С.</a>
-                            <a href="#"> Безопасность и доработка</a>: <a href="https://tigran-dev.ru">Адамян Т.П.</a>
-                            <br />
-                            RSS-канал:
-                            <a href="/rss.xml" target="_blank" rel="noopener">http://www.kubanoms.ru/rss.xml</a>
-                        </div>
-                    </div>
-                </div>
+                <table class="nb p0 bottom">
+                    <tbody>
+                        <tr>
+                            <td align="center" class="bottom">
+                                <table class="nbm" align="center" width="1160">
+                                    <tbody>
+                                        <tr>
+                                            <td class="copy1" width="450">
+                                                <div v-html="settings?.footer_left ?? ''" />
+                                            </td>
+                                            <td class="copy2" width="360">
+                                                <div v-html="settings?.footer_center ?? ''" />
+                                            </td>
+                                            <td class="copy3" width="350">
+                                                <div class="totop">
+                                                    <a href="#top" class="scroll-top"><img src="/legacy/image/top-button.gif" alt="Вверх" /></a>
+                                                </div>
+                                                <div v-html="settings?.footer_right ?? ''" />
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <table class="nbm" align="center" width="1160">
+                                    <tbody>
+                                        <tr>
+                                            <td class="copy4" v-html="footerCopyright"></td>
+                                            <td class="counters" v-html="footerCounters"></td>
+                                            <td class="copy5" v-html="footerDeveloper"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

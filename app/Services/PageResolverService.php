@@ -97,6 +97,9 @@ class PageResolverService
             'LEFT_COLUMN',
             'CENTER_COLUMN',
             'RIGHT_COLUMN',
+            'FOOTER_COPYRIGHT',
+            'FOOTER_COUNTERS',
+            'FOOTER_DEVELOPER',
         ]);
 
         return [
@@ -115,6 +118,9 @@ class PageResolverService
                 'footer_left' => $settings['LEFT_COLUMN'] ?? null,
                 'footer_center' => $settings['CENTER_COLUMN'] ?? null,
                 'footer_right' => $settings['RIGHT_COLUMN'] ?? null,
+                'footer_copyright' => $settings['FOOTER_COPYRIGHT'] ?? null,
+                'footer_counters' => $settings['FOOTER_COUNTERS'] ?? null,
+                'footer_developer' => $settings['FOOTER_DEVELOPER'] ?? null,
             ],
         ];
     }

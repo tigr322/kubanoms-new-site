@@ -34,6 +34,9 @@ const props = defineProps<{
         footer_left?: string | null;
         footer_center?: string | null;
         footer_right?: string | null;
+        footer_copyright?: string | null;
+        footer_counters?: string | null;
+        footer_developer?: string | null;
     };
 }>();
 </script>

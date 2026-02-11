@@ -744,19 +744,37 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'LEFT_COLUMN',
                 'description' => 'Левая колонка футера',
-                'content' => '<h4>Контакты</h4><p>350020, г. Краснодар, ул. Красная, 178</p><p>Контакт-центр: 8-800-200-60-50</p>',
+                'content' => '<h2>Территориальный фонд обязательного <br>медицинского страхования <br>Краснодарского края</h2><h3>Контакты</h3><p>350020, г. Краснодар, ул. Красная, 178</p><p><b>Контакт-центр</b>: 8-800-200-60-50</p><p><b>E-mail</b>: <a href="mailto:tfomskk@kubanoms.ru">tfomskk@kubanoms.ru</a></p><p><strong></strong>&nbsp;</p>',
                 'visibility' => true,
             ],
             [
                 'name' => 'CENTER_COLUMN',
                 'description' => 'Центральная колонка футера',
-                'content' => '<h4>Разделы сайта</h4><ul><li><a href="/grazhd.html">Гражданам</a></li><li><a href="/mo.html">МО</a></li><li><a href="/press/">Пресс-центр</a></li></ul>',
+                'content' => '<h3>Разделы сайта</h3><p><a href="/ktfoms">О фонде</a></p><p><a href="/page21918">ОМС на Кубани</a></p><p><a href="/zakon">Нормативные документы</a></p><p><a href="/rispr">Реестры и справочники</a></p><p>&nbsp;</p><p>&nbsp;</p>',
                 'visibility' => true,
             ],
             [
                 'name' => 'RIGHT_COLUMN',
                 'description' => 'Правая колонка футера',
-                'content' => '<h4>Дополнительно</h4><p>RSS: <a href="/rss.xml" target="_blank" rel="noopener">/rss.xml</a></p>',
+                'content' => '<h3>Дополнительно</h3><p><a href="/?special=1">Версия для слабовидящих</a></p><p><a href="/sitemap">Карта сайта</a></p><p><a href="/contact">Контакты</a></p>',
+                'visibility' => true,
+            ],
+            [
+                'name' => 'FOOTER_COPYRIGHT',
+                'description' => 'Нижняя строка футера (копирайт)',
+                'content' => '© 2009-2022. ТФОМС КК. Все права защищены.',
+                'visibility' => true,
+            ],
+            [
+                'name' => 'FOOTER_COUNTERS',
+                'description' => 'Нижняя строка футера (счетчики)',
+                'content' => '',
+                'visibility' => true,
+            ],
+            [
+                'name' => 'FOOTER_DEVELOPER',
+                'description' => 'Нижняя строка футера (RSS и разработчик)',
+                'content' => '<a href="/rss.xml">RSS-канал</a> <a href="https://mirazher.ru/ru" target="_blank" rel="noopener">За создание сайта - </a>: <a href="https://mirazher.ru/ru" target="_blank" rel="noopener">Mirazher</a>',
                 'visibility' => true,
             ],
             [

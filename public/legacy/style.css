@@ -1569,26 +1569,36 @@ table td.cat_noact {
         display: none;
     }
 
-    .footer .column,
-    .footer .contact,
-    .footer .section-site,
-    .footer .additionally {
-        float: none;
-        width: 100%;
+    table.bottom,
+    table.bottom > tbody,
+    table.bottom > tbody > tr,
+    table.bottom > tbody > tr > td,
+    table.bottom table,
+    table.bottom table > tbody,
+    table.bottom table > tbody > tr,
+    table.bottom table > tbody > tr > td {
+        display: block;
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    table.bottom td.copy1,
+    table.bottom td.copy2,
+    table.bottom td.copy3 {
         padding: 20px 0 0;
     }
 
-    .footer .copyright-wrapper {
-        display: block;
-        height: auto;
+    table.bottom td.copy4,
+    table.bottom td.counters,
+    table.bottom td.copy5 {
+        padding: 10px 0;
+        text-align: left;
+        background: none;
     }
 
-    .footer .copyright-wrapper .copyright,
-    .footer .copyright-wrapper .developer,
-    .footer .copyright-wrapper .counters {
-        display: block;
-        text-align: left;
-        padding: 10px 0;
+    table.bottom .totop {
+        float: none;
+        padding: 0 0 12px 0;
     }
 
     .bottom-banners {

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Cms\CmsPage;
+use App\Models\Cms\CmsSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -105,6 +106,67 @@ class PublicPagesTest extends TestCase
     {
         $this->get('/sitemap')->assertStatus(200)->assertInertia(
             fn (Assert $page) => $page->component('Sitemap'),
+        );
+    }
+
+    public function test_layout_contains_footer_settings_from_cms_setting(): void
+    {
+        CmsPage::factory()->create([
+            'title' => 'Главная',
+            'url' => '/',
+            'page_status' => 3,
+            'page_of_type' => 1,
+            'template' => 'home',
+        ]);
+
+        CmsSetting::query()->insert([
+            [
+                'name' => 'LEFT_COLUMN',
+                'description' => 'Левая колонка футера',
+                'content' => '<h3>Левая колонка</h3>',
+                'visibility' => true,
+            ],
+            [
+                'name' => 'CENTER_COLUMN',
+                'description' => 'Центральная колонка футера',
+                'content' => '<h3>Центр</h3>',
+                'visibility' => true,
+            ],
+            [
+                'name' => 'RIGHT_COLUMN',
+                'description' => 'Правая колонка футера',
+                'content' => '<h3>Правая колонка</h3>',
+                'visibility' => true,
+            ],
+            [
+                'name' => 'FOOTER_COPYRIGHT',
+                'description' => 'Нижняя строка футера (копирайт)',
+                'content' => '© Test',
+                'visibility' => true,
+            ],
+            [
+                'name' => 'FOOTER_COUNTERS',
+                'description' => 'Нижняя строка футера (счетчики)',
+                'content' => '<img src="/counter.gif" alt="counter" />',
+                'visibility' => true,
+            ],
+            [
+                'name' => 'FOOTER_DEVELOPER',
+                'description' => 'Нижняя строка футера (RSS и разработчик)',
+                'content' => '<a href="/rss.xml">RSS</a>',
+                'visibility' => true,
+            ],
+        ]);
+
+        $this->get('/')->assertStatus(200)->assertInertia(
+            fn (Assert $page) => $page
+                ->component('Home')
+                ->where('settings.footer_left', '<h3>Левая колонка</h3>')
+                ->where('settings.footer_center', '<h3>Центр</h3>')
+                ->where('settings.footer_right', '<h3>Правая колонка</h3>')
+                ->where('settings.footer_copyright', '© Test')
+                ->where('settings.footer_counters', '<img src="/counter.gif" alt="counter" />')
+                ->where('settings.footer_developer', '<a href="/rss.xml">RSS</a>'),
         );
     }
 }
