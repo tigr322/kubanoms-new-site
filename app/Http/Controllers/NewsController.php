@@ -8,8 +8,10 @@ use App\Models\Cms\CmsPage;
 use App\PageStatus;
 use App\PageType;
 use App\Services\PageResolverService;
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -42,16 +44,21 @@ class NewsController extends Controller
             ];
 
         $news = $this->newsQuery()
-            ->paginate(10)
-            ->withQueryString()
-            ->through($this->transformListItem());
+            ->get()
+            ->map($this->transformListItem())
+            ->values();
 
         return Inertia::render('NewsArchive', [
             'page' => [
                 ...$pageProps,
-                'content' => BannerSettingHelper::normalizeContent((string) ($pageProps['content'] ?? '')),
+                'content' => $this->normalizeArchiveContent((string) ($pageProps['content'] ?? '')),
             ],
-            'news' => $this->paginatePayload($news),
+            'news' => [
+                'data' => $news->all(),
+                'meta' => [
+                    'total' => $news->count(),
+                ],
+            ],
             ...$this->pageResolverService->layout(),
             'special' => (int) $request->cookie('special', '0'),
         ]);
@@ -80,29 +87,10 @@ class NewsController extends Controller
             'title' => $item->title,
             'url' => $item->url,
             'date' => optional($item->publication_date)?->format('d.m.Y'),
-            'image' => self::normalizeMediaPath(
+            'image' => self::resolvePreviewImage(
                 collect($item->images ?? [])->filter()->first(),
+                is_string($item->content) ? $item->content : null,
             ),
-        ];
-    }
-
-    /**
-     * @return array{
-     *     data: array<int, array{id: int, title: string, url: string, date: string|null, image: string|null}>,
-     *     links: array<int, array{url: string|null, label: string, active: bool}>,
-     *     meta: array{current_page: int, per_page: int, total: int}
-     * }
-     */
-    private function paginatePayload(LengthAwarePaginator $paginator): array
-    {
-        return [
-            'data' => $paginator->items(),
-            'links' => $paginator->linkCollection()->toArray(),
-            'meta' => [
-                'current_page' => $paginator->currentPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-            ],
         ];
     }
 
@@ -118,6 +106,10 @@ class NewsController extends Controller
             $clean = $matches[1];
         }
 
+        if (preg_match('#^https?://#i', $clean)) {
+            return null;
+        }
+
         if (Str::startsWith($clean, '//')) {
             return '/'.ltrim($clean, '/');
         }
@@ -129,5 +121,118 @@ class NewsController extends Controller
         $normalized = preg_replace('#^public/#', '', ltrim($clean, '/'));
 
         return '/storage/'.$normalized;
+    }
+
+    private static function resolvePreviewImage(?string $image, ?string $content): ?string
+    {
+        $normalizedImage = self::normalizeMediaPath($image);
+
+        if ($normalizedImage) {
+            return $normalizedImage;
+        }
+
+        return self::extractFirstContentImage($content);
+    }
+
+    private static function extractFirstContentImage(?string $content): ?string
+    {
+        if (! $content) {
+            return null;
+        }
+
+        if (! preg_match_all('/<img[^>]+src=["\']([^"\']+)["\']/i', $content, $matches)) {
+            return null;
+        }
+
+        $sources = $matches[1] ?? [];
+
+        foreach ($sources as $source) {
+            if (! is_string($source) || ! self::isStorageCompatibleImageSource($source)) {
+                continue;
+            }
+
+            $normalized = self::normalizeMediaPath($source);
+
+            if ($normalized) {
+                return $normalized;
+            }
+        }
+
+        return null;
+    }
+
+    private static function isStorageCompatibleImageSource(string $source): bool
+    {
+        return Str::startsWith($source, ['/storage/', 'storage/', 'cms/'])
+            || (bool) preg_match('#https?://[^/]+/storage/#i', $source);
+    }
+
+    private function normalizeArchiveContent(string $content): string
+    {
+        $normalized = BannerSettingHelper::normalizeContent($content) ?? '';
+
+        if ($normalized === '') {
+            return '';
+        }
+
+        return $this->stripLegacyNewsMarkup($normalized);
+    }
+
+    private function stripLegacyNewsMarkup(string $content): string
+    {
+        $dom = new DOMDocument('1.0', 'UTF-8');
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="utf-8" ?><div id="news-archive-content">'.$content.'</div>');
+        libxml_clear_errors();
+
+        $xpath = new DOMXPath($dom);
+        $wrapper = $xpath->query('//*[@id="news-archive-content"]')->item(0);
+
+        if (! $wrapper instanceof DOMElement) {
+            return $content;
+        }
+
+        $selectors = [
+            './/*[contains(concat(" ", normalize-space(@class), " "), " news ")]',
+            './/*[contains(concat(" ", normalize-space(@class), " "), " pagination ")]',
+            './/*[contains(concat(" ", normalize-space(@class), " "), " pagen ")]',
+            './/p[contains(normalize-space(.), "Страницы:")]',
+            './/div[contains(normalize-space(.), "Страницы:")]',
+            './/a[contains(@href, "newslist/?page=")]/ancestor::*[self::p or self::div or self::td][1]',
+            './/a[contains(@href, "PAGEN_1=")]/ancestor::*[self::p or self::div or self::td][1]',
+        ];
+
+        foreach ($selectors as $selector) {
+            $nodes = $xpath->query($selector, $wrapper);
+
+            if (! $nodes) {
+                continue;
+            }
+
+            $toRemove = [];
+
+            foreach ($nodes as $node) {
+                $toRemove[] = $node;
+            }
+
+            foreach ($toRemove as $node) {
+                if ($node->parentNode) {
+                    $node->parentNode->removeChild($node);
+                }
+            }
+        }
+
+        return trim($this->innerHtml($wrapper));
+    }
+
+    private function innerHtml(DOMElement $element): string
+    {
+        $html = '';
+
+        foreach ($element->childNodes as $child) {
+            $html .= $element->ownerDocument?->saveHTML($child) ?? '';
+        }
+
+        return $html;
     }
 }

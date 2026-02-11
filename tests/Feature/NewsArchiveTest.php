@@ -66,4 +66,51 @@ class NewsArchiveTest extends TestCase
             fn (Assert $page) => $page->component('NewsArchive'),
         );
     }
+
+    public function test_news_archive_returns_full_news_collection_for_frontend_pagination(): void
+    {
+        for ($i = 1; $i <= 12; $i++) {
+            CmsPage::factory()->create([
+                'title' => 'Новость '.$i,
+                'url' => '/newslist/news-'.$i.'.html',
+                'page_status' => PageStatus::PUBLISHED->value,
+                'page_of_type' => PageType::NEWS->value,
+                'publication_date' => now()->subDays($i),
+            ]);
+        }
+
+        $this->get('/newslist')->assertStatus(200)->assertInertia(
+            fn (Assert $page) => $page
+                ->component('NewsArchive')
+                ->has('news.data', 12)
+                ->where('news.meta.total', 12),
+        );
+    }
+
+    public function test_news_archive_strips_legacy_pagination_from_archive_content(): void
+    {
+        CmsPage::factory()->create([
+            'title' => 'Архив новостей',
+            'url' => '/newslist',
+            'page_status' => PageStatus::PUBLISHED->value,
+            'page_of_type' => PageType::PAGE->value,
+            'content' => '<p>Вступление</p><div class="pagination">Страницы: <a href="/newslist/?page=1">1</a> <a href="/newslist/?page=2">2</a></div>',
+        ]);
+
+        CmsPage::factory()->create([
+            'title' => 'Новость 1',
+            'url' => '/newslist/news-1.html',
+            'page_status' => PageStatus::PUBLISHED->value,
+            'page_of_type' => PageType::NEWS->value,
+            'publication_date' => now(),
+        ]);
+
+        $this->get('/newslist')->assertStatus(200)->assertInertia(
+            fn (Assert $page) => $page
+                ->component('NewsArchive')
+                ->where('page.content', fn (string $content): bool => str_contains($content, 'Вступление')
+                    && ! str_contains($content, 'Страницы:')
+                    && ! str_contains($content, 'newslist/?page=')),
+        );
+    }
 }

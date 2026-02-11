@@ -110,16 +110,18 @@ class KubanomsNewsImporter
             'menu_items_updated' => 0,
         ];
 
-        for ($page = $startPage; $page <= $endPage; $page++) {
-            $listHtml = $this->fetchListPage($page, $baseRoot);
+        $listSignatures = [];
 
-            if (! $listHtml) {
+        for ($page = $startPage; $page <= $endPage; $page++) {
+            $listPage = $this->fetchListPage($page, $baseRoot, $listSignatures);
+
+            if (! $listPage) {
                 continue;
             }
 
+            $listSignatures[] = $listPage['signature'];
             $stats['list_pages']++;
-
-            $items = $this->parseListItems($listHtml, $baseRoot);
+            $items = $listPage['items'];
             $stats['list_items'] += count($items);
 
             foreach ($items as $item) {
@@ -183,6 +185,7 @@ class KubanomsNewsImporter
 
                     if ($previewPath !== '') {
                         $images[] = $previewPath;
+                        $parsed['content'] = $this->prependImageToContent($parsed['content'], $previewPath);
                     }
                 }
 
@@ -253,22 +256,86 @@ class KubanomsNewsImporter
         return $stats;
     }
 
-    private function fetchListPage(int $page, string $baseRoot): ?string
+    /**
+     * @param  array<int, string>  $knownSignatures
+     * @return array{
+     *     html: string,
+     *     items: array<int, array{title: string, url: string, date: ?\Carbon\Carbon, preview_image: ?string}>,
+     *     signature: string
+     * }|null
+     */
+    private function fetchListPage(int $page, string $baseRoot, array $knownSignatures): ?array
     {
-        $url = rtrim($baseRoot, '/').'/newslist/?page='.$page;
-        $html = $this->fetchHtml($url);
+        $fallbackDuplicate = null;
 
-        if ($html !== null) {
-            return $html;
+        foreach ($this->listPageCandidates($page, $baseRoot) as $url) {
+            $html = $this->fetchHtml($url);
+
+            if ($html === null) {
+                continue;
+            }
+
+            $items = $this->parseListItems($html, $baseRoot);
+
+            if ($items === []) {
+                continue;
+            }
+
+            $signature = $this->listItemsSignature($items);
+            $payload = [
+                'html' => $html,
+                'items' => $items,
+                'signature' => $signature,
+            ];
+
+            if (! in_array($signature, $knownSignatures, true)) {
+                return $payload;
+            }
+
+            if ($fallbackDuplicate === null) {
+                $fallbackDuplicate = $payload;
+            }
         }
+
+        return $fallbackDuplicate;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function listPageCandidates(int $page, string $baseRoot): array
+    {
+        $root = rtrim($baseRoot, '/');
+        $candidates = [
+            $root.'/newslist/?page='.$page,
+            $root.'/newslist/?PAGEN_1='.$page,
+        ];
 
         if ($page === 1) {
-            $fallback = rtrim($baseRoot, '/').'/newslist/';
-
-            return $this->fetchHtml($fallback);
+            $candidates[] = $root.'/newslist/';
         }
 
-        return null;
+        return array_values(array_unique($candidates));
+    }
+
+    /**
+     * @param  array<int, array{title: string, url: string, date: ?\Carbon\Carbon, preview_image: ?string}>  $items
+     */
+    private function listItemsSignature(array $items): string
+    {
+        $urls = [];
+
+        foreach ($items as $item) {
+            $url = (string) ($item['url'] ?? '');
+
+            if ($url !== '') {
+                $urls[] = $url;
+            }
+        }
+
+        sort($urls);
+
+        return sha1(implode('|', $urls));
     }
 
     /**
@@ -390,6 +457,7 @@ class KubanomsNewsImporter
         $this->normalizeMediaSources($contentNode, $baseRoot);
 
         $images = [];
+        $fallbackImageSrc = $this->extractFallbackImageSource($xpath, $contentNode);
 
         if ($downloadImages) {
             $this->normalizeImages(
@@ -402,13 +470,43 @@ class KubanomsNewsImporter
                 stats: $stats,
                 images: $images,
             );
+
+            if ($images === [] && $fallbackImageSrc) {
+                $fallbackImage = $this->downloadImage(
+                    src: $fallbackImageSrc,
+                    baseRoot: $baseRoot,
+                    baseHost: $baseHost,
+                    disk: $disk,
+                    imageDirectory: $imageDirectory,
+                    imageCache: $imageCache,
+                    stats: $stats,
+                );
+
+                if ($fallbackImage !== '') {
+                    $images[] = $fallbackImage;
+                }
+            }
         } else {
             $this->normalizeImageSourcesWithoutDownload($contentNode, $baseRoot);
+
+            if ($fallbackImageSrc) {
+                $normalizedFallback = $this->normalizeExternalSrc($fallbackImageSrc, $baseRoot);
+
+                if ($normalizedFallback !== '') {
+                    $images[] = $normalizedFallback;
+                }
+            }
+        }
+
+        $contentHtml = trim($this->innerHtml($contentNode));
+
+        if ($images !== []) {
+            $contentHtml = $this->prependImageToContent($contentHtml, $images[0]);
         }
 
         return [
             'title' => $title,
-            'content' => trim($this->innerHtml($contentNode)),
+            'content' => $contentHtml,
             'meta_description' => $metaDescription,
             'meta_keywords' => $metaKeywords,
             'images' => $images,
@@ -843,6 +941,108 @@ class KubanomsNewsImporter
         }
 
         return $this->absoluteUrl($src, $baseRoot);
+    }
+
+    private function prependImageToContent(string $content, string $imageSrc): string
+    {
+        $content = trim($content);
+        $imageSrc = trim($imageSrc);
+
+        if ($imageSrc === '') {
+            return $content;
+        }
+
+        if ($content !== '' && str_contains($content, 'src="'.$imageSrc.'"')) {
+            return $content;
+        }
+
+        $imageHtml = '<p><img src="'.$imageSrc.'" alt="" /></p>';
+
+        if ($content === '') {
+            return $imageHtml;
+        }
+
+        return $imageHtml.PHP_EOL.$content;
+    }
+
+    private function extractFallbackImageSource(DOMXPath $xpath, DOMElement $contentNode): ?string
+    {
+        $candidates = $xpath->query('./ancestor::tr[1]//img[@src]', $contentNode);
+
+        if (! $candidates) {
+            return null;
+        }
+
+        foreach ($this->toArray($candidates) as $candidate) {
+            if (! $candidate instanceof DOMElement) {
+                continue;
+            }
+
+            if ($this->isDescendantOf($candidate, $contentNode)) {
+                continue;
+            }
+
+            $src = trim($candidate->getAttribute('src'));
+
+            if ($src === '' || ! $this->isLikelyArticleImage($src)) {
+                continue;
+            }
+
+            return $src;
+        }
+
+        return null;
+    }
+
+    private function isDescendantOf(DOMElement $node, DOMElement $ancestor): bool
+    {
+        $parent = $node->parentNode;
+
+        while ($parent instanceof DOMElement) {
+            if ($parent->isSameNode($ancestor)) {
+                return true;
+            }
+
+            $parent = $parent->parentNode;
+        }
+
+        return false;
+    }
+
+    private function isLikelyArticleImage(string $src): bool
+    {
+        $path = parse_url($src, PHP_URL_PATH) ?: $src;
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        if (! in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) {
+            return false;
+        }
+
+        $lower = strtolower($path);
+
+        foreach ([
+            'logo',
+            'home.gif',
+            'map.gif',
+            'mail.gif',
+            'search.gif',
+            'print.gif',
+            'totop.gif',
+            'topmenu',
+            'left_top',
+            'left_bottom',
+            'right_top',
+            'right_bottom',
+            'div.gif',
+            'line.gif',
+            'spacer.gif',
+        ] as $noise) {
+            if (str_contains($lower, $noise)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function downloadImage(

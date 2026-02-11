@@ -51,6 +51,46 @@ class PublicPagesTest extends TestCase
         );
     }
 
+    public function test_home_page_uses_content_image_for_latest_news_without_uploaded_photo(): void
+    {
+        CmsPage::factory()->create([
+            'title' => 'Главная',
+            'url' => '/',
+            'page_status' => 3,
+            'page_of_type' => 1,
+            'template' => 'home',
+        ]);
+
+        CmsPage::factory()->create([
+            'title' => 'Старая новость с фото',
+            'url' => '/news/old-with-uploaded-image.html',
+            'page_status' => 3,
+            'page_of_type' => 2,
+            'template' => 'news',
+            'publication_date' => '2026-02-01 12:00:00',
+            'images' => ['cms/news/images/old.jpg'],
+            'content' => '<p>Old news</p>',
+        ]);
+
+        CmsPage::factory()->create([
+            'title' => 'Новая новость без загрузки фото',
+            'url' => '/news/new-with-editor-image.html',
+            'page_status' => 3,
+            'page_of_type' => 2,
+            'template' => 'news',
+            'publication_date' => '2026-02-10 12:00:00',
+            'images' => [],
+            'content' => '<p><img src="/storage/cms/news/images/from-content.jpg" alt=""></p>',
+        ]);
+
+        $this->get('/')->assertStatus(200)->assertInertia(
+            fn (Assert $page) => $page
+                ->component('Home')
+                ->where('latest_news.0.title', 'Новая новость без загрузки фото')
+                ->where('latest_news.0.image', '/storage/cms/news/images/from-content.jpg'),
+        );
+    }
+
     public function test_page_by_slug_is_accessible(): void
     {
         CmsPage::factory()->create([

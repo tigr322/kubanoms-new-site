@@ -41,8 +41,8 @@ class PageRepository
                 $template,
                 fn ($query) => $query->where('template', $template),
             )
-            ->orderByRaw('CASE WHEN images IS NULL OR json_array_length(images) = 0 THEN 1 ELSE 0 END')
             ->orderByDesc('publication_date')
+            ->orderByDesc('id')
             ->limit($limit)
             ->get();
     }

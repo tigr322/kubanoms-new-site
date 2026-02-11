@@ -50,6 +50,7 @@ class ImportKubanomsNewsTest extends TestCase
         $this->assertNotNull($second);
         $this->assertSame('04.02.2026', $second->publication_date?->format('d.m.Y'));
         $this->assertContains('/storage/cms/news/images/_events/preview2.jpg', $second->images ?? []);
+        $this->assertStringContainsString('src="/storage/cms/news/images/_events/preview2.jpg"', (string) $second->content);
 
         Storage::disk('public')->assertExists('cms/news/files/_files/doc.pdf');
         Storage::disk('public')->assertExists('cms/news/files/docs/external-news.docx');
@@ -63,6 +64,52 @@ class ImportKubanomsNewsTest extends TestCase
         $file = CmsFile::query()->where('path', 'cms/news/files/_files/doc.pdf')->first();
         $this->assertNotNull($file);
         $this->assertSame('/storage/cms/news/files/_files/doc.pdf', $file->storage_url);
+    }
+
+    public function test_it_uses_alternative_pagination_parameter_when_page_returns_duplicate_lists(): void
+    {
+        Storage::fake('public');
+        Http::fake([
+            'http://kubanoms.ru/newslist/?page=1' => Http::response($this->listHtmlFirstPageOnly(), 200),
+            'http://kubanoms.ru/newslist/?page=2' => Http::response($this->listHtmlFirstPageOnly(), 200),
+            'http://kubanoms.ru/newslist/?PAGEN_1=2' => Http::response($this->listHtmlSecondPageOnly(), 200),
+            'http://kubanoms.ru/newslist/item-1.html' => Http::response($this->detailHtmlOne(), 200),
+            'http://kubanoms.ru/newslist/item-2.html' => Http::response($this->detailHtmlTwo(), 200),
+            'http://kubanoms.ru/img/news1.jpg' => Http::response('image-1', 200, ['Content-Type' => 'image/jpeg']),
+        ]);
+
+        $this->artisan('kubanoms:import-news', [
+            '--start' => 1,
+            '--end' => 2,
+            '--base-url' => 'http://kubanoms.ru',
+            '--without-documents' => true,
+        ])->assertExitCode(0);
+
+        $this->assertDatabaseHas('cms_page', ['url' => '/newslist/item-1.html']);
+        $this->assertDatabaseHas('cms_page', ['url' => '/newslist/item-2.html']);
+    }
+
+    public function test_it_injects_detail_fallback_image_into_content_when_list_has_no_preview(): void
+    {
+        Storage::fake('public');
+        Http::fake([
+            'http://kubanoms.ru/newslist/?page=1' => Http::response($this->listHtmlWithoutPreview(), 200),
+            'http://kubanoms.ru/newslist/item-3.html' => Http::response($this->detailHtmlWithSideImage(), 200),
+            'http://kubanoms.ru/_events/side-photo.jpg' => Http::response('image-3', 200, ['Content-Type' => 'image/jpeg']),
+        ]);
+
+        $this->artisan('kubanoms:import-news', [
+            '--start' => 1,
+            '--end' => 1,
+            '--base-url' => 'http://kubanoms.ru',
+            '--without-documents' => true,
+        ])->assertExitCode(0);
+
+        /** @var CmsPage|null $news */
+        $news = CmsPage::query()->where('url', '/newslist/item-3.html')->first();
+        $this->assertNotNull($news);
+        $this->assertContains('/storage/cms/news/images/_events/side-photo.jpg', $news->images ?? []);
+        $this->assertStringContainsString('src="/storage/cms/news/images/_events/side-photo.jpg"', (string) $news->content);
     }
 
     private function listHtml(): string
@@ -82,6 +129,57 @@ class ImportKubanomsNewsTest extends TestCase
             <div class="date">05.02.2026</div>
             <h3 class="titlenews"><a href="newslist/item-1.html">First</a></h3>
             <p class="link"><a href="newslist/item-1.html">Посмотреть полностью</a></p>
+        </div>
+    </body>
+</html>
+HTML;
+    }
+
+    private function listHtmlFirstPageOnly(): string
+    {
+        return <<<'HTML'
+<!doctype html>
+<html>
+    <head><meta charset="utf-8"></head>
+    <body>
+        <div class="news">
+            <div class="date">05.02.2026</div>
+            <h3 class="titlenews"><a href="newslist/item-1.html">First</a></h3>
+            <p class="link"><a href="newslist/item-1.html">Посмотреть полностью</a></p>
+        </div>
+    </body>
+</html>
+HTML;
+    }
+
+    private function listHtmlSecondPageOnly(): string
+    {
+        return <<<'HTML'
+<!doctype html>
+<html>
+    <head><meta charset="utf-8"></head>
+    <body>
+        <div class="news">
+            <div class="date">04.02.2026</div>
+            <h3 class="titlenews"><a href="newslist/item-2.html">Second</a></h3>
+            <p class="link"><a href="newslist/item-2.html">Посмотреть полностью</a></p>
+        </div>
+    </body>
+</html>
+HTML;
+    }
+
+    private function listHtmlWithoutPreview(): string
+    {
+        return <<<'HTML'
+<!doctype html>
+<html>
+    <head><meta charset="utf-8"></head>
+    <body>
+        <div class="news">
+            <div class="date">03.02.2026</div>
+            <h3 class="titlenews"><a href="newslist/item-3.html">Third</a></h3>
+            <p class="link"><a href="newslist/item-3.html">Посмотреть полностью</a></p>
         </div>
     </body>
 </html>
@@ -138,6 +236,34 @@ HTML;
                             <h1>Second Title</h1>
                             <div class="date">04.02.2026</div>
                             <p>Second body</p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </body>
+</html>
+HTML;
+    }
+
+    private function detailHtmlWithSideImage(): string
+    {
+        return <<<'HTML'
+<!doctype html>
+<html>
+    <head><meta charset="utf-8"></head>
+    <body>
+        <div class="middle_second">
+            <div>
+                <table class="nbm">
+                    <tr>
+                        <td class="pt0" valign="top">
+                            <img src="_events/side-photo.jpg" alt="" />
+                        </td>
+                        <td class="pt0" valign="top">
+                            <h1>Third Title</h1>
+                            <div class="date">03.02.2026</div>
+                            <p>Third body</p>
                         </td>
                     </tr>
                 </table>

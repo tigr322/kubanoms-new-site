@@ -93,7 +93,7 @@ class CmsPageForm
                     ->imageEditor()
                     ->live()
                     ->columnSpanFull()
-                    ->helperText('Показываются в деталях новости.')
+                    ->helperText('Необязательно. Если поле пустое, на главной в ленте будет использоваться первая картинка из контента (если есть).')
                     ->visible(fn (Get $get): bool => (int) $get('page_of_type') === 2),
                 FileUpload::make('attachments')
                     ->label('Документы')

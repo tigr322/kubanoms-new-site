@@ -43,8 +43,9 @@ class HomeController extends Controller
             'url' => $item->url,
             'date' => optional($item->publication_date)?->format('d.m.Y'),
             'path' => $item->path,
-            'image' => self::normalizeMediaPath(
+            'image' => self::resolvePreviewImage(
                 collect($item->images ?? [])->filter()->first(),
+                is_string($item->content ?? null) ? $item->content : null,
             ),
             'images' => collect($item->images ?? [])
                 ->filter()
@@ -53,6 +54,50 @@ class HomeController extends Controller
                 ->values()
                 ->all(),
         ];
+    }
+
+    private static function resolvePreviewImage(?string $image, ?string $content): ?string
+    {
+        $normalizedImage = self::normalizeMediaPath($image);
+
+        if ($normalizedImage) {
+            return $normalizedImage;
+        }
+
+        return self::extractFirstContentImage($content);
+    }
+
+    private static function extractFirstContentImage(?string $content): ?string
+    {
+        if (! $content) {
+            return null;
+        }
+
+        if (! preg_match_all('/<img[^>]+src=["\']([^"\']+)["\']/i', $content, $matches)) {
+            return null;
+        }
+
+        $sources = $matches[1] ?? [];
+
+        foreach ($sources as $source) {
+            if (! is_string($source) || ! self::isStorageCompatibleImageSource($source)) {
+                continue;
+            }
+
+            $normalized = self::normalizeMediaPath($source);
+
+            if ($normalized) {
+                return $normalized;
+            }
+        }
+
+        return null;
+    }
+
+    private static function isStorageCompatibleImageSource(string $source): bool
+    {
+        return Str::startsWith($source, ['/storage/', 'storage/', 'cms/'])
+            || (bool) preg_match('#https?://[^/]+/storage/#i', $source);
     }
 
     private static function normalizeMediaPath(?string $path): ?string
@@ -65,6 +110,10 @@ class HomeController extends Controller
 
         if (preg_match('#https?://[^/]+(/storage/.*)$#', $path, $matches)) {
             $clean = $matches[1];
+        }
+
+        if (preg_match('#^https?://#i', $clean)) {
+            return null;
         }
 
         if (Str::startsWith($clean, '//')) {
