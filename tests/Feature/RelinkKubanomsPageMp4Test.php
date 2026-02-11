@@ -74,4 +74,90 @@ HTML,
             '--base-url' => 'http://kubanoms.ru',
         ])->assertExitCode(1);
     }
+
+    public function test_it_reuses_existing_storage_file_and_replaces_link_without_redownload(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('cms/page/videos/_pictures/video_new/already.mp4', 'existing-video');
+
+        CmsFile::query()->create([
+            'path' => 'cms/page/videos/_pictures/video_new/already.mp4',
+            'original_name' => 'already.mp4',
+            'mime_type' => 'video/mp4',
+            'extension' => 'mp4',
+            'description' => '',
+            'create_date' => now(),
+            'create_user' => 'test',
+            'update_date' => now(),
+            'update_user' => 'test',
+        ]);
+
+        Http::fake([
+            '*' => Http::response('', 404),
+        ]);
+
+        $page = CmsPage::query()->create([
+            'title' => 'Видео страница',
+            'title_short' => 'Видео страница',
+            'content' => <<<'HTML'
+<video controls src="http://kubanoms.ru/_pictures/video_new/already.mp4"></video>
+HTML,
+            'page_status' => PageStatus::PUBLISHED->value,
+            'page_of_type' => PageType::PAGE->value,
+            'template' => 'default',
+            'url' => '/page21913.html',
+            'create_date' => now(),
+            'create_user' => 'test',
+            'update_date' => now(),
+            'update_user' => 'test',
+        ]);
+
+        $this->artisan('kubanoms:relink-page-mp4', [
+            '--page-url' => '/page21913.html',
+            '--base-url' => 'http://kubanoms.ru',
+        ])->assertExitCode(0);
+
+        $page->refresh();
+
+        $this->assertStringContainsString(
+            'src="/storage/cms/page/videos/_pictures/video_new/already.mp4"',
+            (string) $page->content,
+        );
+        $this->assertStringNotContainsString('http://kubanoms.ru/_pictures/video_new/already.mp4', (string) $page->content);
+        Http::assertNothingSent();
+    }
+
+    public function test_it_normalizes_dot_segments_in_mp4_links(): void
+    {
+        Storage::fake('public');
+        Http::fake([
+            'http://kubanoms.ru/../../x.mp4' => Http::response('video-x', 200, ['Content-Type' => 'video/mp4']),
+        ]);
+
+        $page = CmsPage::query()->create([
+            'title' => 'Видео страница',
+            'title_short' => 'Видео страница',
+            'content' => <<<'HTML'
+<video controls src="http://kubanoms.ru/../../x.mp4"></video>
+HTML,
+            'page_status' => PageStatus::PUBLISHED->value,
+            'page_of_type' => PageType::PAGE->value,
+            'template' => 'default',
+            'url' => '/page21913.html',
+            'create_date' => now(),
+            'create_user' => 'test',
+            'update_date' => now(),
+            'update_user' => 'test',
+        ]);
+
+        $this->artisan('kubanoms:relink-page-mp4', [
+            '--page-url' => '/page21913.html',
+            '--base-url' => 'http://kubanoms.ru',
+        ])->assertExitCode(0);
+
+        $page->refresh();
+
+        $this->assertStringContainsString('src="/storage/cms/page/videos/x.mp4"', (string) $page->content);
+        Storage::disk('public')->assertExists('cms/page/videos/x.mp4');
+    }
 }

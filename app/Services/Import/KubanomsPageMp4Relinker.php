@@ -318,6 +318,17 @@ class KubanomsPageMp4Relinker
             return $fileCache[$absolute];
         }
 
+        $targetPath = $this->fileTargetPath($fileDirectory, $absolute, '', '');
+        $existingStoragePath = $this->resolveExistingStoragePath($disk, $targetPath);
+
+        if ($existingStoragePath !== null) {
+            $fileCache[$absolute] = $existingStoragePath;
+            $stats['files_skipped']++;
+            $this->trackStorageLink($stats, $existingStoragePath, $collectLinks, $onStorageLink);
+
+            return $existingStoragePath;
+        }
+
         try {
             $response = Http::retry(3, 250, throw: false)
                 ->timeout(30)
@@ -394,9 +405,8 @@ class KubanomsPageMp4Relinker
         string $contentType,
         string $contentDisposition,
     ): string {
-        $path = parse_url($absoluteUrl, PHP_URL_PATH) ?? '';
-        $path = ltrim($path, '/');
-        $path = str_replace(['..', '\\'], ['', '/'], $path);
+        $path = (string) (parse_url($absoluteUrl, PHP_URL_PATH) ?? '');
+        $path = $this->normalizeStorageRelativePath($path);
 
         if ($path === '') {
             $path = 'video';
@@ -415,6 +425,44 @@ class KubanomsPageMp4Relinker
         }
 
         return trim($fileDirectory, '/').'/'.$path;
+    }
+
+    private function resolveExistingStoragePath(string $disk, string $targetPath): ?string
+    {
+        if ($targetPath === '' || ! Storage::disk($disk)->exists($targetPath)) {
+            return null;
+        }
+
+        $url = Storage::disk($disk)->url($targetPath);
+        $urlPath = parse_url($url, PHP_URL_PATH) ?: $url;
+
+        if (! is_string($urlPath) || trim($urlPath) === '') {
+            return null;
+        }
+
+        return $urlPath;
+    }
+
+    private function normalizeStorageRelativePath(string $path): string
+    {
+        $segments = explode('/', str_replace('\\', '/', ltrim(trim($path), '/')));
+        $normalized = [];
+
+        foreach ($segments as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+
+            if ($segment === '..') {
+                array_pop($normalized);
+
+                continue;
+            }
+
+            $normalized[] = $segment;
+        }
+
+        return implode('/', $normalized);
     }
 
     private function extensionFromFileContentType(string $contentType): string
