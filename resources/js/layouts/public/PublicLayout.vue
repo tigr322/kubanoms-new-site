@@ -318,6 +318,19 @@ onBeforeUnmount(() => {
 </style>
 
 <style>
+.top,
+.bottom-bar {
+    background-repeat: repeat-x !important;
+}
+
+.top {
+    background-position: top center !important;
+}
+
+.bottom-bar {
+    background-position: bottom center !important;
+}
+
 html,
 html.dark {
     background-color: #c6e3e8 !important;
@@ -329,11 +342,41 @@ html.dark {
 }
 
 body:not(.special-mode) {
-    background-color: #c6e3e8 !important;
+    background-color: #ffffff !important;
     background-image:
         url('/legacy/image/top_bg.jpg'),
         url('/legacy/image/body_bg.jpg') !important;
     background-repeat: repeat-x, repeat-x !important;
     background-position: top center, center 201px !important;
+}
+
+body:not(.special-mode) .bottom-bar {
+    position: relative;
+    isolation: isolate;
+    background-color: #c6e3e8 !important;
+    background-image:
+        url('/legacy/image/bottom_bg.jpg'),
+        url('/legacy/image/body_bg.jpg') !important;
+    background-repeat: repeat-x, repeat-x !important;
+    background-position: bottom center, top center !important;
+}
+
+body:not(.special-mode) .bottom-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -4000px;
+    bottom: 0;
+    left: -4000px;
+    background-color: #c6e3e8;
+    background-image: url('/legacy/image/bottom_bg.jpg'), url('/legacy/image/body_bg.jpg');
+    background-repeat: repeat-x, repeat-x;
+    background-position: bottom center, top center;
+    z-index: -1;
+    pointer-events: none;
+}
+
+body:not(.special-mode) table.bottom {
+    background: transparent !important;
 }
 </style>
