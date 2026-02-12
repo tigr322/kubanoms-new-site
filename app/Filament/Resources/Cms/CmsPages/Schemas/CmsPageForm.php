@@ -14,6 +14,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Utilities\Get;
@@ -48,6 +49,31 @@ class CmsPageForm
                         ['undo', 'redo'],
                     ])
                     ->columnSpanFull(),
+                Textarea::make('content_raw_html')
+                    ->label('HTML контента (таблицы / video)')
+                    ->dehydrated(false)
+                    ->rows(14)
+                    ->columnSpanFull()
+                    ->helperText('Если в визуальном редакторе не видны ссылки в <video>, редактируйте HTML здесь. При изменении это поле обновляет контент страницы.')
+                    ->afterStateHydrated(function (Set $set, ?CmsPage $record): void {
+                        if (! $record instanceof CmsPage) {
+                            return;
+                        }
+
+                        $rawContent = $record->getRawOriginal('content');
+
+                        if (is_string($rawContent)) {
+                            $set('content_raw_html', $rawContent);
+                        }
+                    })
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(function (Set $set, mixed $state): void {
+                        if (! is_string($state)) {
+                            return;
+                        }
+
+                        $set('content', $state);
+                    }),
                 Select::make('page_status')
                     ->label('Статус страницы')
                     ->options([
@@ -121,7 +147,7 @@ class CmsPageForm
                 Placeholder::make('content_storage_links')
                     ->label('Файлы и ссылки для вставки в контент')
                     ->columnSpanFull()
-                    ->content(fn (Get $get): HtmlString => self::buildStorageLinksContent($get)),
+                    ->content(fn (Get $get, ?CmsPage $record): HtmlString => self::buildStorageLinksContent($get, $record)),
                 Actions::make([
                     Action::make('upload_cms_file')
                         ->label('Загрузить документ')
@@ -240,21 +266,52 @@ class CmsPageForm
             ]);
     }
 
-    private static function buildStorageLinksContent(Get $get): HtmlString
+    private static function buildStorageLinksContent(Get $get, ?CmsPage $record): HtmlString
     {
         $presenter = app(ContentStorageLinkPresenter::class);
+        $images = $get('images');
+        $attachments = $get('attachments');
+        $editorContent = is_string($get('content')) ? $get('content') : null;
+        $recordContent = null;
+
+        if ($record instanceof CmsPage) {
+            $rawContent = $record->getRawOriginal('content');
+            $recordContent = is_string($rawContent) ? $rawContent : null;
+        }
+
+        $contentForPreview = $editorContent;
+
+        $editorStorageLinks = $presenter->collect(
+            images: $images,
+            attachments: $attachments,
+            content: $editorContent,
+        );
+        $editorExternalMp4Links = $presenter->collectExternalVideoLinks($editorContent);
+
+        $usedRecordFallback = false;
+
+        if ($editorStorageLinks === [] && $editorExternalMp4Links === [] && is_string($recordContent) && $recordContent !== '') {
+            $contentForPreview = $recordContent;
+            $usedRecordFallback = true;
+        }
 
         $plainLinks = $presenter->buildPlainText(
-            images: $get('images'),
-            attachments: $get('attachments'),
-            content: is_string($get('content')) ? $get('content') : null,
+            images: $images,
+            attachments: $attachments,
+            content: $contentForPreview,
         );
 
         $htmlSnippets = $presenter->buildHtmlSnippets(
-            images: $get('images'),
-            attachments: $get('attachments'),
-            content: is_string($get('content')) ? $get('content') : null,
+            images: $images,
+            attachments: $attachments,
+            content: $contentForPreview,
         );
+
+        $externalVideoLinks = $presenter->buildExternalVideoPlainText($contentForPreview);
+
+        $fallbackHint = $usedRecordFallback
+            ? '<p style="margin:0;color:#b45309;font-size:12px;">Показаны ссылки из сохранённого HTML страницы (редактор может скрывать теги &lt;video&gt; до сохранения).</p>'
+            : '';
 
         $html = '<div style="display:grid;gap:12px;">
             <div>
@@ -265,9 +322,14 @@ class CmsPageForm
                 <div style="font-weight:600;margin-bottom:6px;">Готовые HTML-вставки</div>
                 <textarea readonly rows="8" style="width:100%;font-family:monospace;font-size:12px;padding:8px;border:1px solid #d1d5db;border-radius:6px;">'.e($htmlSnippets).'</textarea>
             </div>
+            <div>
+                <div style="font-weight:600;margin-bottom:6px;">Внешние видео-ссылки из контента (mp4)</div>
+                <textarea readonly rows="6" style="width:100%;font-family:monospace;font-size:12px;padding:8px;border:1px solid #d1d5db;border-radius:6px;">'.e($externalVideoLinks).'</textarea>
+            </div>
             <p style="margin:0;color:#6b7280;font-size:12px;">
-                Блок собирает ссылки из "Фотографии", "Документы" и уже вставленных в контент путей /storage/... .
+                Блок собирает ссылки из "Фотографии", "Документы", уже вставленных в контент путей /storage/... и отдельно показывает внешние mp4-ссылки.
             </p>
+            '.$fallbackHint.'
         </div>';
 
         return new HtmlString($html);

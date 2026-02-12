@@ -91,4 +91,34 @@ class ContentStorageLinkPresenterTest extends TestCase
 
         $this->assertSame('Файлы не найдены.', $html);
     }
+
+    public function test_collect_external_video_links_returns_only_external_mp4_urls(): void
+    {
+        $presenter = new ContentStorageLinkPresenter;
+
+        $links = $presenter->collectExternalVideoLinks(<<<'HTML'
+<p>
+    <video src="http://kubanoms.ru/_pictures/video_new/first.mp4"></video>
+    <a href="https://cdn.example.org/video/second.mp4?download=1">Second</a>
+    <video src="/storage/cms/page/videos/local.mp4"></video>
+    <a href="https://example.org/doc.pdf">Doc</a>
+    <source src="//kubanoms.ru/_pictures/video_new/third.mp4" type="video/mp4">
+</p>
+HTML);
+
+        $this->assertSame([
+            'http://kubanoms.ru/_pictures/video_new/first.mp4',
+            'https://cdn.example.org/video/second.mp4?download=1',
+            '//kubanoms.ru/_pictures/video_new/third.mp4',
+        ], $links);
+    }
+
+    public function test_build_external_video_plain_text_returns_hint_when_no_external_mp4_links(): void
+    {
+        $presenter = new ContentStorageLinkPresenter;
+
+        $plain = $presenter->buildExternalVideoPlainText('<p><video src="/storage/cms/page/videos/local.mp4"></video></p>');
+
+        $this->assertSame('Внешние mp4-ссылки не найдены.', $plain);
+    }
 }

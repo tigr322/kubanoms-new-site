@@ -39,6 +39,17 @@ class ContentStorageLinkPresenter
         return implode(PHP_EOL, $snippets);
     }
 
+    public function buildExternalVideoPlainText(?string $content): string
+    {
+        $links = $this->collectExternalVideoLinks($content);
+
+        if ($links === []) {
+            return 'Внешние mp4-ссылки не найдены.';
+        }
+
+        return implode(PHP_EOL, $links);
+    }
+
     /**
      * @param  iterable<int, array<string, mixed>|object>  $files
      */
@@ -154,6 +165,51 @@ class ContentStorageLinkPresenter
         }
 
         return array_values(array_unique($links));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function collectExternalVideoLinks(?string $content): array
+    {
+        if (! is_string($content) || $content === '') {
+            return [];
+        }
+
+        preg_match_all('/(?:href|src)\s*=\s*["\']([^"\']+)["\']/i', $content, $matches);
+
+        $links = [];
+
+        foreach ($matches[1] ?? [] as $candidate) {
+            $value = trim((string) $candidate);
+
+            if ($value === '' || ! $this->isExternalUrl($value)) {
+                continue;
+            }
+
+            if ($this->normalizeStoragePath($value, false) !== null) {
+                continue;
+            }
+
+            $path = parse_url($value, PHP_URL_PATH);
+
+            if (! is_string($path) || $path === '') {
+                continue;
+            }
+
+            if (Str::lower((string) pathinfo($path, PATHINFO_EXTENSION)) !== 'mp4') {
+                continue;
+            }
+
+            $links[] = $value;
+        }
+
+        return array_values(array_unique($links));
+    }
+
+    private function isExternalUrl(string $value): bool
+    {
+        return Str::startsWith($value, ['http://', 'https://', '//']);
     }
 
     private function normalizeStoragePath(string $path, bool $allowRelativeStorage): ?string
