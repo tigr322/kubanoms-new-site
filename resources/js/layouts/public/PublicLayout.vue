@@ -316,3 +316,14 @@ onBeforeUnmount(() => {
     width: 100%;
 }
 </style>
+
+<style>
+html,
+html.dark {
+    background-color: #c6e3e8 !important;
+}
+
+body:not(.special-mode) {
+    background: #c6e3e8 url('/legacy/image/body_bg.jpg') repeat-x top !important;
+}
+</style>
