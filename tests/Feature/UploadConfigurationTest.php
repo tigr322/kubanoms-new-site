@@ -33,4 +33,15 @@ class UploadConfigurationTest extends TestCase
         putenv('LIVEWIRE_UPLOAD_MAX_MINUTES');
         putenv('CMS_FILE_UPLOAD_MAX_KB');
     }
+
+    public function test_file_folder_relation_manager_uses_configured_upload_limit(): void
+    {
+        $source = file_get_contents(app_path('Filament/Resources/Cms/CmsFileFolders/RelationManagers/FilesRelationManager.php'));
+
+        $this->assertIsString($source);
+        $this->assertStringContainsString(
+            "->maxSize((int) config('cms.file_upload_max_kb', 1012000))",
+            $source,
+        );
+    }
 }

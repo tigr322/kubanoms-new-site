@@ -34,7 +34,7 @@ class FilesRelationManager extends RelationManager
             FileUpload::make('upload')
                 ->label('Загрузить файл')
                 ->storeFiles(false)
-                ->maxSize(51200)
+                ->maxSize((int) config('cms.file_upload_max_kb', 1012000))
                 ->columnSpanFull()
                 ->helperText('После сохранения появится storage-ссылка вида /storage/...'),
             TextInput::make('original_name')
