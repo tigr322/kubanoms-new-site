@@ -182,6 +182,7 @@ onBeforeUnmount(() => {
     </Head>
     <AccessibilityPanel />
     <div id="top" class="wrapper">
+        <Link href="/admin" class="admin-shortcut">Админка</Link>
         <div class="top">
             <div class="container">
                 <div class="header">
@@ -314,6 +315,27 @@ onBeforeUnmount(() => {
 <style scoped>
 .content-wrapper.hide-right-sidebar .main-content {
     width: 100%;
+}
+
+.admin-shortcut {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 1500;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid #0e517e;
+    background: rgba(255, 255, 255, 0.94);
+    color: #0e517e;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-decoration: none;
+}
+
+.admin-shortcut:hover {
+    background: #0e517e;
+    color: #fff;
 }
 </style>
 
