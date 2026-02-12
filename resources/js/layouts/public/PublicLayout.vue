@@ -320,10 +320,10 @@ onBeforeUnmount(() => {
 <style>
 html,
 html.dark {
-    background-color: #c6e3e8 !important;
+    background-color: #fff !important;
 }
 
 body:not(.special-mode) {
-    background: #c6e3e8 url('/legacy/image/body_bg.jpg') repeat-x top !important;
+    background: #fff url('/legacy/image/body_bg.jpg') repeat-x top !important;
 }
 </style>
