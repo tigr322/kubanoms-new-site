@@ -320,10 +320,20 @@ onBeforeUnmount(() => {
 <style>
 html,
 html.dark {
-    background-color: #fff !important;
+    background-color: #c6e3e8 !important;
+    background-image:
+        url('/legacy/image/top_bg.jpg'),
+        url('/legacy/image/body_bg.jpg') !important;
+    background-repeat: repeat-x, repeat-x !important;
+    background-position: top center, center 201px !important;
 }
 
 body:not(.special-mode) {
-    background: #fff url('/legacy/image/body_bg.jpg') repeat-x top !important;
+    background-color: #c6e3e8 !important;
+    background-image:
+        url('/legacy/image/top_bg.jpg'),
+        url('/legacy/image/body_bg.jpg') !important;
+    background-repeat: repeat-x, repeat-x !important;
+    background-position: top center, center 201px !important;
 }
 </style>
