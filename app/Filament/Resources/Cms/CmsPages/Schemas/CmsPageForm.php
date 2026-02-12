@@ -51,10 +51,10 @@ class CmsPageForm
                     ->columnSpanFull(),
                 Textarea::make('content_raw_html')
                     ->label('HTML контента (таблицы / video)')
-                    ->dehydrated(false)
+                    ->dehydrated()
                     ->rows(14)
                     ->columnSpanFull()
-                    ->helperText('Если в визуальном редакторе не видны ссылки в <video>, редактируйте HTML здесь. При изменении это поле обновляет контент страницы.')
+                    ->helperText('Если в визуальном редакторе не видны ссылки в <video>, редактируйте HTML здесь. При сохранении страницы это поле сохраняется в контент без потери ссылок.')
                     ->afterStateHydrated(function (Set $set, ?CmsPage $record): void {
                         if (! $record instanceof CmsPage) {
                             return;
@@ -66,14 +66,7 @@ class CmsPageForm
                             $set('content_raw_html', $rawContent);
                         }
                     })
-                    ->live(onBlur: true)
-                    ->afterStateUpdated(function (Set $set, mixed $state): void {
-                        if (! is_string($state)) {
-                            return;
-                        }
-
-                        $set('content', $state);
-                    }),
+                    ->live(onBlur: true),
                 Select::make('page_status')
                     ->label('Статус страницы')
                     ->options([
@@ -271,6 +264,7 @@ class CmsPageForm
         $presenter = app(ContentStorageLinkPresenter::class);
         $images = $get('images');
         $attachments = $get('attachments');
+        $rawHtmlContent = is_string($get('content_raw_html')) ? $get('content_raw_html') : null;
         $editorContent = is_string($get('content')) ? $get('content') : null;
         $recordContent = null;
 
@@ -279,18 +273,18 @@ class CmsPageForm
             $recordContent = is_string($rawContent) ? $rawContent : null;
         }
 
-        $contentForPreview = $editorContent;
+        $contentForPreview = filled($rawHtmlContent) ? $rawHtmlContent : $editorContent;
 
-        $editorStorageLinks = $presenter->collect(
+        $previewStorageLinks = $presenter->collect(
             images: $images,
             attachments: $attachments,
-            content: $editorContent,
+            content: $contentForPreview,
         );
-        $editorExternalMp4Links = $presenter->collectExternalVideoLinks($editorContent);
+        $previewExternalMp4Links = $presenter->collectExternalVideoLinks($contentForPreview);
 
         $usedRecordFallback = false;
 
-        if ($editorStorageLinks === [] && $editorExternalMp4Links === [] && is_string($recordContent) && $recordContent !== '') {
+        if ($previewStorageLinks === [] && $previewExternalMp4Links === [] && is_string($recordContent) && $recordContent !== '') {
             $contentForPreview = $recordContent;
             $usedRecordFallback = true;
         }

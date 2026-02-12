@@ -16,4 +16,27 @@ class EditCmsPage extends EditRecord
             DeleteAction::make(),
         ];
     }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $rawHtml = $data['content_raw_html'] ?? null;
+        unset($data['content_raw_html']);
+
+        if (! is_string($rawHtml)) {
+            return $data;
+        }
+
+        $recordContent = $this->record->getRawOriginal('content');
+        $recordContent = is_string($recordContent) ? $recordContent : '';
+
+        if (trim($rawHtml) !== '' && $rawHtml !== $recordContent) {
+            $data['content'] = $rawHtml;
+        }
+
+        return $data;
+    }
 }
