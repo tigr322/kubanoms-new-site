@@ -23,7 +23,7 @@ class CmsFileForm
                 FileUpload::make('upload')
                     ->label('Загрузить файл')
                     ->storeFiles(false)
-                    ->maxSize(51200)
+                    ->maxSize((int) config('cms.file_upload_max_kb', 1012000))
                     ->columnSpanFull()
                     ->helperText('Поддерживаются любые файлы. После сохранения ссылка будет доступна как /storage/...'),
                 TextInput::make('original_name')
