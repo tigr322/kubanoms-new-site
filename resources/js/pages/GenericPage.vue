@@ -42,7 +42,121 @@ const findMenuItemByUrl = (items: MenuItem[], url: string): MenuItem | null => {
     return null;
 };
 
+const normalizeUrl = (value: string | null | undefined): string => {
+    const raw = (value ?? '').trim();
+
+    if (raw === '') {
+        return '';
+    }
+
+    if (raw.startsWith('/')) {
+        return raw.toLowerCase();
+    }
+
+    if (raw.startsWith('//')) {
+        try {
+            const parsed = new URL(`https:${raw}`);
+
+            return `${parsed.pathname}${parsed.search}`.toLowerCase();
+        } catch {
+            return raw.toLowerCase();
+        }
+    }
+
+    try {
+        const parsed = new URL(raw);
+
+        return `${parsed.pathname}${parsed.search}`.toLowerCase();
+    } catch {
+        return raw.toLowerCase();
+    }
+};
+
+const normalizeText = (value: string): string =>
+    value
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+
+const buildMenuDedupKey = (item: MenuItem): string => {
+    const normalizedUrl = normalizeUrl(item.url);
+    const normalizedTitle = normalizeText(item.title);
+
+    return `${normalizedUrl}|${normalizedTitle}`;
+};
+
+const deduplicateMenuItems = (items: MenuItem[]): MenuItem[] => {
+    const groupedItems = new Map<string, MenuItem>();
+
+    for (const item of items) {
+        const deduplicatedChildren = deduplicateMenuItems(item.children ?? []);
+        const key = buildMenuDedupKey(item);
+        const existingItem = groupedItems.get(key);
+
+        if (!existingItem) {
+            groupedItems.set(key, {
+                ...item,
+                children: deduplicatedChildren,
+            });
+            continue;
+        }
+
+        existingItem.children = deduplicateMenuItems([
+            ...existingItem.children,
+            ...deduplicatedChildren,
+        ]);
+    }
+
+    return Array.from(groupedItems.values());
+};
+
 const currentNavbarItem = computed(() => findMenuItemByUrl(props.menus.navbar, currentPath.value));
+const currentNavbarChildren = computed(() =>
+    deduplicateMenuItems(currentNavbarItem.value?.children ?? []),
+);
+
+const contentAnchorLinks = computed(() => {
+    const html = props.page.content ?? '';
+    const matches = html.matchAll(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi);
+    const links: Array<{ url: string; title: string }> = [];
+
+    for (const match of matches) {
+        links.push({
+            url: normalizeUrl(match[1] ?? ''),
+            title: normalizeText(match[2] ?? ''),
+        });
+    }
+
+    return links;
+});
+
+const isSectionMapDuplicatedByContent = computed(() => {
+    if (currentNavbarChildren.value.length === 0) {
+        return false;
+    }
+
+    const sectionLinks = currentNavbarChildren.value
+        .filter((item) => !!item.url)
+        .map((item) => ({
+            url: normalizeUrl(item.url),
+            title: normalizeText(item.title),
+        }));
+
+    if (sectionLinks.length === 0) {
+        return false;
+    }
+
+    return sectionLinks.every((sectionItem) =>
+        contentAnchorLinks.value.some(
+            (contentLink) =>
+                contentLink.url !== '' &&
+                contentLink.url === sectionItem.url &&
+                contentLink.title !== '' &&
+                contentLink.title === sectionItem.title,
+        ),
+    );
+});
 </script>
 
 <template>
@@ -59,9 +173,9 @@ const currentNavbarItem = computed(() => findMenuItemByUrl(props.menus.navbar, c
             <Breadcrumbs :items="[]" />
             <h1>{{ page.title }}</h1>
 
-            <div v-if="currentNavbarItem?.children?.length" class="section-map">
+            <div v-if="currentNavbarChildren.length && !isSectionMapDuplicatedByContent" class="section-map">
                 <h2>Страницы раздела</h2>
-                <MenuTree :items="currentNavbarItem.children" />
+                <MenuTree :items="currentNavbarChildren" />
             </div>
 
             <div v-html="page.content" />
