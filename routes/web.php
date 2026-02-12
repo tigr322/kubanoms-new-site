@@ -5,6 +5,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\Oms\VirtualReceptionController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\PrintController;
 use App\Http\Controllers\RssController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SitemapController;
@@ -19,6 +20,9 @@ Route::get('/dashboard', function () {
 
 Route::get('/rss.xml', [RssController::class, 'index'])->name('rss');
 Route::get('/search', [SearchController::class, 'index'])->name('search');
+Route::get('/print/{url}', [PrintController::class, 'show'])
+    ->where('url', '[A-Za-z0-9\\-\\/_\\.]+')
+    ->name('print.show');
 Route::get('/sitemap', [SitemapController::class, 'index'])->name('sitemap');
 Route::get('/newslist', [NewsController::class, 'index'])->name('news.index');
 Route::get('/branches', [BranchController::class, 'index'])->name('branches');

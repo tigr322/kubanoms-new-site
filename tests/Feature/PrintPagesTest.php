@@ -73,4 +73,26 @@ class PrintPagesTest extends TestCase
 
         $this->get('/print/about')->assertNotFound();
     }
+
+    public function test_print_version_does_not_duplicate_images_from_content_and_images_field(): void
+    {
+        $imagePath = '/storage/cms/news/images/photo.jpg';
+
+        CmsPage::factory()->create([
+            'title' => 'Новость без дублей фото',
+            'url' => '/news/no-duplicates',
+            'page_status' => 3,
+            'page_of_type' => 2,
+            'content' => '<p><img src="'.$imagePath.'" alt="photo"></p>',
+            'images' => [
+                'cms/news/images/photo.jpg',
+            ],
+        ]);
+
+        $response = $this->get('/print/news/no-duplicates')->assertStatus(200);
+
+        $content = $response->getContent();
+        $this->assertIsString($content);
+        $this->assertSame(1, substr_count($content, $imagePath));
+    }
 }

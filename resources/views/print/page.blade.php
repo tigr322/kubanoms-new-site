@@ -84,6 +84,55 @@
             };
 
             $topImagePath = '/legacy/image/top1.gif';
+            $normalizeForCompare = function (?string $value): string {
+                if (! is_string($value) || trim($value) === '') {
+                    return '';
+                }
+
+                $trimmed = trim($value);
+
+                if (str_starts_with($trimmed, '//') || str_starts_with($trimmed, '/')) {
+                    return strtolower($trimmed);
+                }
+
+                $path = parse_url($trimmed, PHP_URL_PATH);
+                $query = parse_url($trimmed, PHP_URL_QUERY);
+
+                if (is_string($path) && $path !== '') {
+                    return strtolower($path.($query ? '?'.$query : ''));
+                }
+
+                return strtolower($trimmed);
+            };
+
+            $contentImageSources = [];
+            preg_match_all('/<img[^>]+src=["\']([^"\']+)["\'][^>]*>/i', (string) $content, $contentImageMatches);
+
+            foreach ($contentImageMatches[1] ?? [] as $candidateSrc) {
+                $normalized = $normalizeForCompare((string) $candidateSrc);
+
+                if ($normalized !== '') {
+                    $contentImageSources[$normalized] = true;
+                }
+            }
+
+            $galleryImages = [];
+
+            foreach (($page->images ?? []) as $image) {
+                $src = $normalizeHref($image);
+
+                if (! $src) {
+                    continue;
+                }
+
+                $normalized = $normalizeForCompare($src);
+
+                if ($normalized === '' || isset($contentImageSources[$normalized])) {
+                    continue;
+                }
+
+                $galleryImages[] = $src;
+            }
         @endphp
 
         <div class="wrapper">
@@ -105,14 +154,10 @@
 
                 {!! $content !!}
 
-                @if(!empty($page->images))
-                    <h3>Фотографии</h3>
+                @if(!empty($galleryImages))
                     <div class="news-gallery">
-                        @foreach(($page->images ?? []) as $image)
-                            @php($src = $normalizeHref($image))
-                            @if($src)
-                                <img src="{{ $src }}" alt="{{ $page->title }}">
-                            @endif
+                        @foreach($galleryImages as $src)
+                            <img src="{{ $src }}" alt="{{ $page->title }}">
                         @endforeach
                     </div>
                 @endif

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import Breadcrumbs from '@/components/public/Breadcrumbs.vue';
 import PublicLayout from '@/layouts/public/PublicLayout.vue';
 
@@ -10,7 +11,7 @@ type MenuItem = {
     children: MenuItem[];
 };
 
-defineProps<{
+const props = defineProps<{
     page: {
         title: string;
         url: string;
@@ -32,6 +33,59 @@ defineProps<{
     special?: number | string;
     settings?: Record<string, unknown>;
 }>();
+
+const normalizeImageForCompare = (value: string): string => {
+    const trimmed = value.trim();
+
+    if (trimmed === '') {
+        return '';
+    }
+
+    if (trimmed.startsWith('//')) {
+        return trimmed.toLowerCase();
+    }
+
+    if (trimmed.startsWith('/')) {
+        return trimmed.toLowerCase();
+    }
+
+    try {
+        const parsed = new URL(trimmed);
+
+        return `${parsed.pathname}${parsed.search}`.toLowerCase();
+    } catch {
+        return trimmed.toLowerCase();
+    }
+};
+
+const contentImageSet = computed(() => {
+    const html = props.page.content ?? '';
+    const matches = html.matchAll(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi);
+    const sources = new Set<string>();
+
+    for (const match of matches) {
+        const src = match[1] ?? '';
+        const normalized = normalizeImageForCompare(src);
+
+        if (normalized !== '') {
+            sources.add(normalized);
+        }
+    }
+
+    return sources;
+});
+
+const galleryImages = computed(() =>
+    (props.page.images ?? []).filter((image) => {
+        const normalized = normalizeImageForCompare(image);
+
+        if (normalized === '') {
+            return false;
+        }
+
+        return !contentImageSet.value.has(normalized);
+    }),
+);
 </script>
 
 <template>
@@ -52,10 +106,9 @@ defineProps<{
             <h1>{{ page.title }}</h1>
             <p class="date" v-if="page.publication_date">{{ page.publication_date }}</p>
             <div v-html="page.content" />
-            <div v-if="page.images?.length" class="news-gallery">
-                <h3>Фотографии</h3>
+            <div v-if="galleryImages.length" class="news-gallery">
                 <div class="news-gallery__grid">
-                    <figure v-for="image in page.images" :key="image" class="news-gallery__item">
+                    <figure v-for="image in galleryImages" :key="image" class="news-gallery__item">
                         <img :src="image" :alt="page.title" loading="lazy" />
                     </figure>
                 </div>
