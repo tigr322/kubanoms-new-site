@@ -58,6 +58,8 @@ const footerDeveloper = computed(
 const page = usePage();
 const mainContentRef = ref<HTMLElement | null>(null);
 const hideRightSidebar = ref(false);
+const isMobileViewport = ref(false);
+const isMobileSidebarOpen = ref(false);
 
 let resizeObserver: ResizeObserver | null = null;
 let mutationObserver: MutationObserver | null = null;
@@ -120,9 +122,53 @@ const resetWideTablesState = (): void => {
     });
 };
 
+const updateMobileViewportState = (): void => {
+    isMobileViewport.value = window.matchMedia('(max-width: 768px)').matches;
+
+    if (!isMobileViewport.value && isMobileSidebarOpen.value) {
+        isMobileSidebarOpen.value = false;
+    }
+};
+
+const toggleMobileSidebar = (): void => {
+    if (!isMobileViewport.value) {
+        return;
+    }
+
+    isMobileSidebarOpen.value = !isMobileSidebarOpen.value;
+};
+
+const closeMobileSidebar = (): void => {
+    if (!isMobileSidebarOpen.value) {
+        return;
+    }
+
+    isMobileSidebarOpen.value = false;
+};
+
+const handleWindowResize = (): void => {
+    scheduleDetectWideTables();
+    updateMobileViewportState();
+};
+
+const handleSidebarWrapperClick = (event: MouseEvent): void => {
+    if (!isMobileViewport.value || !isMobileSidebarOpen.value) {
+        return;
+    }
+
+    if (!(event.target instanceof Element)) {
+        return;
+    }
+
+    if (event.target.closest('a')) {
+        closeMobileSidebar();
+    }
+};
+
 onMounted(() => {
     document.body.classList.toggle('special-mode', isSpecial.value);
     scheduleDetectWideTables();
+    updateMobileViewportState();
 
     if (mainContentRef.value) {
         mutationObserver = new MutationObserver(() => {
@@ -139,7 +185,7 @@ onMounted(() => {
         resizeObserver.observe(mainContentRef.value);
     }
 
-    window.addEventListener('resize', scheduleDetectWideTables);
+    window.addEventListener('resize', handleWindowResize);
 });
 
 watch(
@@ -153,6 +199,7 @@ watch(
     () => page.url,
     () => {
         resetWideTablesState();
+        closeMobileSidebar();
     },
 );
 
@@ -163,7 +210,7 @@ onBeforeUnmount(() => {
 
     mutationObserver?.disconnect();
     resizeObserver?.disconnect();
-    window.removeEventListener('resize', scheduleDetectWideTables);
+    window.removeEventListener('resize', handleWindowResize);
 });
 </script>
 
@@ -237,8 +284,24 @@ onBeforeUnmount(() => {
                     </div>
                     <Navbar :items="menus.navbar" />
                 </div>
-                <div class="main clearfix">
-                    <div class="sidebar-wrapper">
+                <div class="main clearfix" :class="{ 'mobile-sidebar-open': isMobileSidebarOpen && isMobileViewport }">
+                    <button
+                        v-if="isMobileViewport"
+                        type="button"
+                        class="mobile-sidebar-toggle"
+                        :aria-expanded="isMobileSidebarOpen ? 'true' : 'false'"
+                        aria-controls="mobile-site-sidebar"
+                        @click="toggleMobileSidebar"
+                    >
+                        <span class="mobile-sidebar-toggle-label">Разделы сайта</span>
+                        <span class="mobile-sidebar-toggle-arrow">{{ isMobileSidebarOpen ? '▾' : '▸' }}</span>
+                    </button>
+                    <div
+                        id="mobile-site-sidebar"
+                        class="sidebar-wrapper"
+                        :class="{ 'mobile-sidebar-panel': isMobileViewport, 'is-mobile-open': isMobileSidebarOpen && isMobileViewport }"
+                        @click.capture="handleSidebarWrapperClick"
+                    >
                         <Sidebar :items="menus.sidebar" />
                         <div class="banners" v-if="settings?.left_sidebar_banners" v-html="settings.left_sidebar_banners" />
                     </div>
@@ -342,6 +405,67 @@ onBeforeUnmount(() => {
     background: #0e517e;
     color: #fff;
 }
+
+@media (max-width: 768px) {
+    .mobile-sidebar-toggle {
+        position: relative;
+        width: 100%;
+        margin: 0 0 10px;
+        padding: 10px 14px;
+        border: 1px solid #0e517e;
+        border-radius: 6px;
+        background: #0e517e;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        cursor: pointer;
+    }
+
+    .mobile-sidebar-toggle-label {
+        font-size: 14px;
+        line-height: 1.2;
+        font-weight: 700;
+    }
+
+    .mobile-sidebar-toggle-arrow {
+        font-size: 17px;
+        line-height: 1;
+        font-weight: 700;
+    }
+
+    .sidebar-wrapper.mobile-sidebar-panel {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        padding: 0;
+        background: #eef6f9;
+        border-radius: 6px;
+        border: 1px solid #d8e8ef;
+        overflow: hidden;
+        max-height: 0;
+        opacity: 0;
+        transition: max-height 0.32s ease, opacity 0.25s ease, margin-bottom 0.25s ease;
+    }
+
+    .sidebar-wrapper.mobile-sidebar-panel.is-mobile-open {
+        max-height: 72vh;
+        opacity: 1;
+        overflow-y: auto;
+        margin-bottom: 12px !important;
+    }
+
+    .main.mobile-sidebar-open .mobile-sidebar-toggle {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    .main :deep(.sidebar) {
+        width: 100%;
+    }
+}
 </style>
 
 <style>
@@ -406,4 +530,5 @@ body:not(.special-mode) .bottom-bar::before {
 body:not(.special-mode) table.bottom {
     background: transparent !important;
 }
+
 </style>
