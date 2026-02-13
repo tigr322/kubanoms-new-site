@@ -192,6 +192,34 @@ ul.navbar > li.is-open > ul > li span {
     ul.navbar > li:hover > ul > li:hover {
         background-color: transparent;
     }
+
+    .sidebar-wrapper,
+    .content-wrapper,
+    .main-content,
+    .content-left {
+        float: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+    }
+
+    .sidebar-wrapper {
+        margin-bottom: 16px !important;
+    }
+
+    .main {
+        display: block;
+    }
+
+    .content {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .content table {
+        min-width: max-content;
+    }
 }
 
 .sidebar-wrapper {
