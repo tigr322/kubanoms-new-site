@@ -504,6 +504,8 @@ body:not(.special-mode) {
 body:not(.special-mode) .bottom-bar {
     position: relative;
     isolation: isolate;
+    overflow-x: hidden;
+    overflow-x: clip;
     background-color: #c6e3e8 !important;
     background-image:
         url('/legacy/image/bottom_bg.jpg'),
