@@ -265,6 +265,11 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                     </div>
+                    <div
+                        class="mobile-left-banners banners"
+                        v-if="settings?.left_sidebar_banners"
+                        v-html="settings.left_sidebar_banners"
+                    />
                 </div>
                     <div class="bottom-banners" v-if="settings?.bottom_banners" v-html="settings.bottom_banners" />
 

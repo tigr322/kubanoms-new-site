@@ -239,6 +239,10 @@ ul.navbar > li.is-open > ul > li span {
     font-size: 0;
 }
 
+.mobile-left-banners {
+    display: none;
+}
+
 .bottom-banners {
     padding: 15px 0;
     text-align: center;
@@ -1625,6 +1629,32 @@ table td.cat_noact {
 
     ul.sidebar {
         width: 100%;
+    }
+
+    .sidebar-wrapper > .banners {
+        display: none;
+    }
+
+    .mobile-left-banners {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 0 8px;
+    }
+
+    .mobile-left-banners a {
+        display: inline-flex;
+        padding: 0;
+        margin: 0;
+    }
+
+    .mobile-left-banners img {
+        max-width: 110px;
+        max-height: 64px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
     }
 
     .main-content,
