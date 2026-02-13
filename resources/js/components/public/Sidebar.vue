@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 
 type MenuItem = {
     id: number;
@@ -13,11 +13,21 @@ const props = defineProps<{
     items: MenuItem[];
 }>();
 
+const sidebarRef = ref<HTMLElement | null>(null);
 const openItems = ref<number[]>([]);
 const hoveredItemId = ref<number | null>(null);
+const supportsHover = ref(true);
+
+const hasChildren = (item: MenuItem): boolean => {
+    return Array.isArray(item.children) && item.children.length > 0;
+};
 
 const isOpen = (id: number): boolean => {
-    return openItems.value.includes(id) || hoveredItemId.value === id;
+    if (supportsHover.value) {
+        return openItems.value.includes(id) || hoveredItemId.value === id;
+    }
+
+    return openItems.value.includes(id);
 };
 
 const toggle = (id: number): void => {
@@ -29,7 +39,7 @@ const toggle = (id: number): void => {
 };
 
 const handleMouseEnter = (item: MenuItem): void => {
-    if (!item.children?.length) {
+    if (!supportsHover.value || !hasChildren(item)) {
         return;
     }
 
@@ -37,24 +47,79 @@ const handleMouseEnter = (item: MenuItem): void => {
 };
 
 const handleMouseLeave = (item: MenuItem): void => {
+    if (!supportsHover.value) {
+        return;
+    }
+
     if (hoveredItemId.value === item.id) {
         hoveredItemId.value = null;
     }
 };
 
 const handleItemClick = (event: MouseEvent, item: MenuItem): void => {
-    if (!item.children?.length) {
+    if (!hasChildren(item)) {
         return;
     }
 
-    // Match legacy behavior: parents with children expand instead of navigating.
+    if (!supportsHover.value) {
+        if (!openItems.value.includes(item.id)) {
+            event.preventDefault();
+            toggle(item.id);
+
+            return;
+        }
+
+        return;
+    }
+
+    event.preventDefault();
+};
+
+const handleItemTitleClick = (event: MouseEvent, item: MenuItem): void => {
+    if (!hasChildren(item)) {
+        return;
+    }
+
     event.preventDefault();
     toggle(item.id);
 };
+
+const handleItemTitleEnter = (item: MenuItem): void => {
+    if (!hasChildren(item)) {
+        return;
+    }
+
+    toggle(item.id);
+};
+
+const handleOutsideClick = (event: MouseEvent): void => {
+    if (supportsHover.value) {
+        return;
+    }
+
+    const root = sidebarRef.value;
+
+    if (!root) {
+        return;
+    }
+
+    if (event.target instanceof Node && !root.contains(event.target)) {
+        openItems.value = [];
+    }
+};
+
+onMounted(() => {
+    supportsHover.value = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    document.addEventListener('click', handleOutsideClick);
+});
+
+onBeforeUnmount(() => {
+    document.removeEventListener('click', handleOutsideClick);
+});
 </script>
 
 <template>
-    <ul class="sidebar">
+    <ul ref="sidebarRef" class="sidebar">
         <li
             v-for="item in props.items"
             :key="item.id"
@@ -69,7 +134,15 @@ const handleItemClick = (event: MouseEvent, item: MenuItem): void => {
             >
                 {{ item.title }}
             </Link>
-            <span v-else>{{ item.title }}</span>
+            <span
+                v-else
+                role="button"
+                tabindex="0"
+                @click="(event) => handleItemTitleClick(event, item)"
+                @keydown.enter.prevent="handleItemTitleEnter(item)"
+            >
+                {{ item.title }}
+            </span>
             <ul v-if="item.children?.length">
                 <li v-for="child in item.children" :key="child.id">
                     <Link v-if="child.url" :href="child.url">{{ child.title }}</Link>
@@ -79,3 +152,10 @@ const handleItemClick = (event: MouseEvent, item: MenuItem): void => {
         </li>
     </ul>
 </template>
+
+<style scoped>
+.sidebar > li > span {
+    display: block;
+    cursor: pointer;
+}
+</style>

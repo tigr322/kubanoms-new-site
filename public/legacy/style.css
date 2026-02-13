@@ -137,10 +137,21 @@ ul.navbar > li > a {
     position: relative;
     font-size: 14px;
 }
+ul.navbar > li > span {
+    color: #0e517e;
+    text-decoration: none;
+    font-weight: bold;
+    line-height: 37px;
+    display: block;
+    text-align: center;
+    position: relative;
+    font-size: 14px;
+}
 ul.navbar > li > ul {
     display: none;
 }
-ul.navbar > li:hover > ul {
+ul.navbar > li:hover > ul,
+ul.navbar > li.is-open > ul {
     display: block;
     background-color: #0e517e;
     position: absolute;
@@ -148,25 +159,39 @@ ul.navbar > li:hover > ul {
     z-index: 100;
     width: 290px;
 }
-ul.navbar > li:hover > ul > li {
+ul.navbar > li:hover > ul > li,
+ul.navbar > li.is-open > ul > li {
     padding: 10px 20px 10px 20px;
     border-bottom: 1px solid #a4c5dc;
 }
-ul.navbar > li:hover > ul > li a {
+ul.navbar > li:hover > ul > li a,
+ul.navbar > li.is-open > ul > li a {
     color: #fff;
     display: block;
     font-size: 14px;
     text-decoration: none;
 }
 
-ul.navbar > li:hover > ul > li:hover {
+ul.navbar > li:hover > ul > li:hover,
+ul.navbar > li.is-open > ul > li:hover {
     background-color: #08b7be;
 }
 
-ul.navbar > li:hover > ul > li span {
+ul.navbar > li:hover > ul > li span,
+ul.navbar > li.is-open > ul > li span {
     color: #fff;
     display: block;
     font-size: 14px;
+}
+
+@media (hover: none), (pointer: coarse) {
+    ul.navbar > li:hover > ul {
+        display: none;
+    }
+
+    ul.navbar > li:hover > ul > li:hover {
+        background-color: transparent;
+    }
 }
 
 .sidebar-wrapper {
@@ -1471,9 +1496,23 @@ table td.cat_noact {
         background: #fff;
     }
 
+    html,
+    body {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
     .top,
     .bottom-bar {
         background: none;
+    }
+
+    .wrapper,
+    .top,
+    .main,
+    .bottom-bar {
+        max-width: 100vw;
+        overflow-x: hidden;
     }
 
     .container {
@@ -1500,7 +1539,7 @@ table td.cat_noact {
     ul.navbar {
         display: block;
         padding: 0;
-        overflow: hidden;
+        overflow: visible;
     }
 
     ul.navbar > li {
@@ -1515,16 +1554,27 @@ table td.cat_noact {
 
     ul.navbar > li > a {
         min-height: auto;
-        justify-content: flex-start;
+        display: block;
+        text-align: left;
+        padding: 12px 14px;
+    }
+
+    ul.navbar > li > span {
+        min-height: auto;
+        display: block;
         text-align: left;
         padding: 12px 14px;
     }
 
     ul.navbar > li > ul {
-        display: block;
+        display: none;
         position: static;
         width: 100%;
         background-color: #f2f6f7;
+    }
+
+    ul.navbar > li.is-open > ul {
+        display: block;
     }
 
     ul.navbar > li > ul > li {
@@ -1547,6 +1597,12 @@ table td.cat_noact {
 
     ul.sidebar {
         width: 100%;
+    }
+
+    .main-content,
+    .content-wrapper,
+    .sidebar-wrapper {
+        min-width: 0;
     }
 
     ul.sidebar > li.active > a {
