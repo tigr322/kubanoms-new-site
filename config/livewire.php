@@ -14,8 +14,19 @@ if ($maxUploadMinutes <= 0) {
     $maxUploadMinutes = 30;
 }
 
+$maxPayloadNestingDepth = (int) env('LIVEWIRE_PAYLOAD_MAX_NESTING_DEPTH', 25);
+
+if ($maxPayloadNestingDepth <= 0) {
+    $maxPayloadNestingDepth = 25;
+}
+
+if (! is_array($config['payload'] ?? null)) {
+    $config['payload'] = [];
+}
+
 $config['temporary_file_upload']['rules'] = ['required', 'file', 'max:'.$maxUploadKilobytes];
 $config['temporary_file_upload']['max_upload_time'] = $maxUploadMinutes;
 $config['temporary_file_upload']['middleware'] = 'throttle:120,1';
+$config['payload']['max_nesting_depth'] = $maxPayloadNestingDepth;
 
 return $config;

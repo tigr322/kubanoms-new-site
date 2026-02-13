@@ -13,6 +13,7 @@ class UploadConfigurationTest extends TestCase
             config('livewire.temporary_file_upload.rules'),
         );
         $this->assertSame(30, config('livewire.temporary_file_upload.max_upload_time'));
+        $this->assertSame(25, config('livewire.payload.max_nesting_depth'));
         $this->assertSame(1012000, config('cms.file_upload_max_kb'));
     }
 
@@ -20,6 +21,7 @@ class UploadConfigurationTest extends TestCase
     {
         putenv('LIVEWIRE_UPLOAD_MAX_KB=2048');
         putenv('LIVEWIRE_UPLOAD_MAX_MINUTES=12');
+        putenv('LIVEWIRE_PAYLOAD_MAX_NESTING_DEPTH=40');
         putenv('CMS_FILE_UPLOAD_MAX_KB=1024');
 
         $livewireConfig = require config_path('livewire.php');
@@ -27,10 +29,12 @@ class UploadConfigurationTest extends TestCase
 
         $this->assertSame(['required', 'file', 'max:2048'], $livewireConfig['temporary_file_upload']['rules']);
         $this->assertSame(12, $livewireConfig['temporary_file_upload']['max_upload_time']);
+        $this->assertSame(40, $livewireConfig['payload']['max_nesting_depth']);
         $this->assertSame(1024, $cmsConfig['file_upload_max_kb']);
 
         putenv('LIVEWIRE_UPLOAD_MAX_KB');
         putenv('LIVEWIRE_UPLOAD_MAX_MINUTES');
+        putenv('LIVEWIRE_PAYLOAD_MAX_NESTING_DEPTH');
         putenv('CMS_FILE_UPLOAD_MAX_KB');
     }
 
