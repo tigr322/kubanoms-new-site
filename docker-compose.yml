@@ -9,13 +9,16 @@ services:
       - .env
     container_name: kubanoms_app
     restart: unless-stopped
+    command: sh -lc "php-fpm -D && nginx -g 'daemon off;'"
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./:/var/www
       - sqlite_data:/var/www/database
       - storage_data:/var/www/storage
-
+      - /etc/nginx/ssl/kubanoms.ru:/etc/nginx/ssl/kubanoms.ru:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
 
 volumes:
   sqlite_data:
